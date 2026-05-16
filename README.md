@@ -1,0 +1,137 @@
+# sonar-mcp
+
+A Model Context Protocol (MCP) server that wraps the SonarCloud REST API, exposing named tools for querying code quality data directly from Claude Code.
+
+## What it does
+
+Registers a set of MCP tools that Claude can call in any session to query SonarCloud without manual HTTP calls or token management. Pass an organization and project key per call, and the server handles auth, request shaping, and response parsing.
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_quality_gate` | Quality gate status and failing conditions for a project |
+| `get_issues` | List issues filtered by severity, type, and status |
+| `get_issue_summary` | Aggregate issue counts by severity and type |
+
+## Tech stack
+
+- Python 3.12+
+- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+- `httpx` — async HTTP client
+- `pydantic` — request/response models and validation
+- `mypy` (strict) — static type checking
+- `ruff` — linting and formatting
+- `pytest` + `respx` + `pytest-asyncio` — test suite
+
+## Setup
+
+### 1. Prerequisites
+
+- Python 3.12+
+- A SonarCloud account and API token
+
+### 2. Install dependencies
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# or: source .venv/bin/activate  # macOS/Linux
+pip install -e ".[dev]"
+```
+
+### 3. Configure environment
+
+Create a `.env` file or set environment variables:
+
+```env
+SONAR_TOKEN=your_sonarcloud_token
+
+# Optional defaults — can be overridden per tool call
+SONAR_DEFAULT_ORG=your_organization_slug
+SONAR_DEFAULT_PROJECT=your_project_key
+```
+
+### 4. Register with Claude Code
+
+Add to `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "sonar": {
+      "command": "python",
+      "args": ["-m", "sonar_mcp"],
+      "env": {
+        "SONAR_TOKEN": "${SONAR_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+## Running tests
+
+```bash
+pytest
+```
+
+With type checking:
+
+```bash
+mypy src
+```
+
+With linting:
+
+```bash
+ruff check src tests
+```
+
+## Usage examples
+
+Once registered, Claude can call tools directly:
+
+> "What's the quality gate status for project my-app in org my-org?"
+
+> "Show me all blocker and critical bugs in project my-app."
+
+> "Give me an issue summary for my-app — how many open issues by severity?"
+
+## Roadmap
+
+| Feature | Status |
+|---------|--------|
+| Project setup and documentation | Done |
+| Pydantic models for SonarCloud API responses | Planned |
+| `get_quality_gate` tool | Planned |
+| `get_issues` tool | Planned |
+| `get_issue_summary` tool | Planned |
+| Integration tests against real SonarCloud API | Planned |
+| Register server with Claude Code | Planned |
+
+## Project structure
+
+```
+sonar-mcp/
+├── src/
+│   └── sonar_mcp/
+│       ├── __init__.py
+│       ├── __main__.py       # MCP server entry point
+│       ├── client.py         # SonarCloud HTTP client
+│       ├── models.py         # Pydantic request/response models
+│       └── tools/
+│           ├── quality_gate.py
+│           └── issues.py
+├── tests/
+│   ├── conftest.py
+│   ├── test_quality_gate.py
+│   └── test_issues.py
+├── pyproject.toml
+├── .env.example
+├── .gitignore
+├── AGENTS.md
+├── CLAUDE.md
+├── CLAUDE_SECURITY.md
+└── README.md
+```
