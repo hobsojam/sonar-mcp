@@ -1,4 +1,5 @@
 import json
+import os
 
 import httpx
 import pytest
@@ -174,3 +175,46 @@ async def test_summary_propagates_401(monkeypatch: pytest.MonkeyPatch) -> None:
         mock.get(_PATH).mock(return_value=httpx.Response(401))
         with pytest.raises(httpx.HTTPStatusError):
             await get_issue_summary("my-project")
+
+
+# --- integration tests ---
+
+
+@pytest.mark.integration
+async def test_integration_get_issues_returns_list() -> None:
+    token = os.environ.get("SONAR_TOKEN", "")
+    org = os.environ.get("SONAR_DEFAULT_ORG", "")
+    project = os.environ.get("SONAR_DEFAULT_PROJECT", "")
+    if not all([token, org, project]):
+        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, SONAR_DEFAULT_PROJECT required")
+    result = await get_issues(project, organization=org)
+    issues = json.loads(result)
+    assert isinstance(issues, list)
+
+
+@pytest.mark.integration
+async def test_integration_get_issues_with_severity_filter() -> None:
+    token = os.environ.get("SONAR_TOKEN", "")
+    org = os.environ.get("SONAR_DEFAULT_ORG", "")
+    project = os.environ.get("SONAR_DEFAULT_PROJECT", "")
+    if not all([token, org, project]):
+        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, SONAR_DEFAULT_PROJECT required")
+    result = await get_issues(project, organization=org, severity=IssueSeverity.BLOCKER)
+    issues = json.loads(result)
+    assert all(i["severity"] == "BLOCKER" for i in issues)
+
+
+@pytest.mark.integration
+async def test_integration_get_issue_summary_has_valid_counts() -> None:
+    token = os.environ.get("SONAR_TOKEN", "")
+    org = os.environ.get("SONAR_DEFAULT_ORG", "")
+    project = os.environ.get("SONAR_DEFAULT_PROJECT", "")
+    if not all([token, org, project]):
+        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, SONAR_DEFAULT_PROJECT required")
+    result = await get_issue_summary(project, organization=org)
+    summary = json.loads(result)
+    assert all(v >= 0 for v in summary["by_severity"].values())
+    assert all(v >= 0 for v in summary["by_type"].values())
+    total_by_severity = sum(summary["by_severity"].values())
+    total_by_type = sum(summary["by_type"].values())
+    assert total_by_severity == total_by_type
