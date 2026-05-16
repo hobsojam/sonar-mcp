@@ -41,6 +41,18 @@ async def test_get_issues_returns_all_issues_with_no_filters(
     issues = json.loads(result)
     assert len(issues) == 1
     assert issues[0]["key"] == "issue-1"
+    expected_url = "https://sonarcloud.io/project/issues?id=my-project&issues=issue-1&open=issue-1"
+    assert issues[0]["url"] == expected_url
+
+
+async def test_get_issues_includes_org_in_url(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([_ISSUE])))
+        result = await get_issues("my-project", organization="my-org", ctx=sonar_ctx)
+    issues = json.loads(result)
+    assert "org=my-org" in issues[0]["url"]
 
 
 async def test_get_issues_severity_filter_is_passed_to_api(
@@ -124,6 +136,17 @@ async def test_summary_returns_correct_counts_by_severity(
     assert counts["by_severity"]["BLOCKER"] == 2
     assert counts["by_severity"]["MAJOR"] == 1
     assert counts["by_severity"]["CRITICAL"] == 0
+    assert counts["url"] == "https://sonarcloud.io/project/issues?id=my-project&resolved=false"
+
+
+async def test_summary_includes_org_in_url(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([])))
+        result = await get_issue_summary("my-project", organization="my-org", ctx=sonar_ctx)
+    counts = json.loads(result)
+    assert "org=my-org" in counts["url"]
 
 
 async def test_summary_returns_correct_counts_by_type(
