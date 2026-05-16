@@ -16,6 +16,9 @@ from sonar_mcp.models import (
     Issue,
     IssuesParams,
     IssuesResponse,
+    Project,
+    ProjectsParams,
+    ProjectsResponse,
     QualityGateParams,
     QualityGateProjectStatus,
 )
@@ -44,6 +47,26 @@ class SonarClient:
         response = await self.get("qualitygates/project_status", params=query)
         self._handle_response(response)
         return _QualityGateResponse.model_validate(response.json()).projectStatus
+
+    async def get_projects(self, params: ProjectsParams) -> list[Project]:
+        query: dict[str, str] = {"ps": str(_PAGE_SIZE)}
+        if params.organization is not None:
+            query["organization"] = params.organization
+        if params.query is not None:
+            query["q"] = params.query
+
+        all_projects: list[Project] = []
+        page = 1
+        while True:
+            query["p"] = str(page)
+            response = await self.get("projects/search", params=query)
+            response.raise_for_status()
+            parsed = ProjectsResponse.model_validate(response.json())
+            all_projects.extend(parsed.components)
+            if len(all_projects) >= parsed.paging.total:
+                break
+            page += 1
+        return all_projects
 
     async def get_issues(self, params: IssuesParams) -> list[Issue]:
         query: dict[str, str] = {

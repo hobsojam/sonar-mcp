@@ -23,6 +23,11 @@ async def test_lifespan_yields_sonar_client_when_token_is_set(
         assert isinstance(client, SonarClient)
 
 
-async def test_all_three_tools_are_registered() -> None:
+async def test_all_four_tools_are_registered() -> None:
     tools = await server.list_tools()
-    assert {t.name for t in tools} == {"get_quality_gate", "get_issues", "get_issue_summary"}
+    assert {t.name for t in tools} == {
+        "get_quality_gate",
+        "get_issues",
+        "get_issue_summary",
+        "list_projects",
+    }

@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 
 from sonar_mcp.client import SonarClient
 from sonar_mcp.tools.issues import get_issue_summary, get_issues
+from sonar_mcp.tools.projects import list_projects
 from sonar_mcp.tools.quality_gate import get_quality_gate
 
 
@@ -24,6 +25,7 @@ server = FastMCP("sonar-mcp", lifespan=_lifespan)
 server.tool()(get_quality_gate)
 server.tool()(get_issues)
 server.tool()(get_issue_summary)
+server.tool()(list_projects)
 
 
 def main() -> None:

@@ -77,3 +77,22 @@ class IssuesParams(BaseModel):
     severity: IssueSeverity | None = None
     type: IssueType | None = None
     statuses: list[IssueStatus] | None = None
+
+
+class Project(BaseModel):
+    key: str
+    name: str
+    organization: str
+    visibility: str
+    lastAnalysisDate: str | None = None
+    url: str | None = None
+
+
+class ProjectsResponse(BaseModel):
+    paging: Paging
+    components: list[Project]
+
+
+class ProjectsParams(BaseModel):
+    organization: str | None = None
+    query: str | None = None
