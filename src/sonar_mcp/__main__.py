@@ -3,7 +3,10 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
+from sonar_mcp.tools.quality_gate import get_quality_gate
+
 server = FastMCP("sonar-mcp")
+server.tool()(get_quality_gate)
 
 
 def main() -> None:
