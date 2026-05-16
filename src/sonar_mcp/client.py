@@ -4,6 +4,14 @@ from typing import Self
 import httpx
 from pydantic import BaseModel
 
+from sonar_mcp.exceptions import (
+    SonarAuthenticationError,
+    SonarError,
+    SonarPermissionError,
+    SonarRateLimitError,
+    SonarResourceNotFoundError,
+    SonarValidationError,
+)
 from sonar_mcp.models import (
     Issue,
     IssuesParams,
@@ -34,7 +42,7 @@ class SonarClient:
         if params.organization is not None:
             query["organization"] = params.organization
         response = await self.get("qualitygates/project_status", params=query)
-        response.raise_for_status()
+        self._handle_response(response)
         return _QualityGateResponse.model_validate(response.json()).projectStatus
 
     async def get_issues(self, params: IssuesParams) -> list[Issue]:
@@ -56,13 +64,39 @@ class SonarClient:
         while True:
             query["p"] = str(page)
             response = await self.get("issues/search", params=query)
-            response.raise_for_status()
+            self._handle_response(response)
             parsed = IssuesResponse.model_validate(response.json())
             all_issues.extend(parsed.issues)
             if len(all_issues) >= parsed.paging.total:
                 break
             page += 1
         return all_issues
+
+    def _handle_response(self, response: httpx.Response) -> None:
+        if response.is_success:
+            return
+
+        status_code = response.status_code
+        try:
+            data = response.json()
+            errors = data.get("errors", [])
+            message = errors[0].get("msg") if errors else response.text
+        except Exception:
+            errors = []
+            message = response.text
+
+        if status_code == 401:
+            raise SonarAuthenticationError("Authentication failed: Invalid API token")
+        if status_code == 403:
+            raise SonarPermissionError(f"Permission denied: {message}")
+        if status_code == 404:
+            raise SonarResourceNotFoundError(f"Resource not found: {message}")
+        if status_code == 400:
+            raise SonarValidationError(f"Validation failed: {message}", errors=errors)
+        if status_code == 429:
+            raise SonarRateLimitError("Rate limit exceeded")
+
+        raise SonarError(f"API request failed with status {status_code}: {message}")
 
     async def get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
         return await self._http.get(f"{self._base_url}/{path.lstrip('/')}", params=params)

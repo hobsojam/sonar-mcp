@@ -5,6 +5,7 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from sonar_mcp.client import SonarClient
+from sonar_mcp.exceptions import SonarError
 from sonar_mcp.models import IssueSeverity, IssuesParams, IssueStatus, IssueType
 
 
@@ -27,15 +28,18 @@ async def get_issues(
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
-    issues = await client.get_issues(
-        IssuesParams(
-            project_key=project_key,
-            organization=org,
-            severity=severity,
-            type=type,
-            statuses=[status] if status is not None else None,
+    try:
+        issues = await client.get_issues(
+            IssuesParams(
+                project_key=project_key,
+                organization=org,
+                severity=severity,
+                type=type,
+                statuses=[status] if status is not None else None,
+            )
         )
-    )
+    except SonarError as e:
+        return f"Error retrieving issues: {e}"
 
     for issue in issues:
         url = f"https://sonarcloud.io/project/issues?id={project_key}&issues={issue.key}&open={issue.key}"
@@ -62,13 +66,16 @@ async def get_issue_summary(
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
-    issues = await client.get_issues(
-        IssuesParams(
-            project_key=project_key,
-            organization=org,
-            statuses=[IssueStatus.OPEN, IssueStatus.CONFIRMED, IssueStatus.REOPENED],
+    try:
+        issues = await client.get_issues(
+            IssuesParams(
+                project_key=project_key,
+                organization=org,
+                statuses=[IssueStatus.OPEN, IssueStatus.CONFIRMED, IssueStatus.REOPENED],
+            )
         )
-    )
+    except SonarError as e:
+        return f"Error retrieving issue summary: {e}"
 
     by_severity = {s.value: 0 for s in IssueSeverity}
     by_type = {t.value: 0 for t in IssueType}

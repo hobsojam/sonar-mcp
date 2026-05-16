@@ -102,18 +102,20 @@ async def test_get_issues_returns_empty_list_when_no_issues(
     assert json.loads(result) == []
 
 
-async def test_get_issues_raises_on_401(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+async def test_get_issues_returns_error_on_401(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
     async with respx.mock() as mock:
         mock.get(_PATH).mock(return_value=httpx.Response(401))
-        with pytest.raises(httpx.HTTPStatusError):
-            await get_issues("my-project", ctx=sonar_ctx)
+        result = await get_issues("my-project", ctx=sonar_ctx)
+    assert "Error retrieving issues" in result
+    assert "Authentication failed" in result
 
 
-async def test_get_issues_raises_on_404(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+async def test_get_issues_returns_error_on_404(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
     async with respx.mock() as mock:
-        mock.get(_PATH).mock(return_value=httpx.Response(404))
-        with pytest.raises(httpx.HTTPStatusError):
-            await get_issues("nonexistent-project", ctx=sonar_ctx)
+        mock.get(_PATH).mock(return_value=httpx.Response(404, text="Project not found"))
+        result = await get_issues("nonexistent-project", ctx=sonar_ctx)
+    assert "Error retrieving issues" in result
+    assert "Resource not found" in result
 
 
 # --- get_issue_summary ---
@@ -195,11 +197,12 @@ async def test_summary_falls_back_to_sonar_default_org(
     assert b"organization=my-org" in route.calls[0].request.url.query
 
 
-async def test_summary_propagates_401(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+async def test_summary_returns_error_on_401(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
     async with respx.mock() as mock:
         mock.get(_PATH).mock(return_value=httpx.Response(401))
-        with pytest.raises(httpx.HTTPStatusError):
-            await get_issue_summary("my-project", ctx=sonar_ctx)
+        result = await get_issue_summary("my-project", ctx=sonar_ctx)
+    assert "Error retrieving issue summary" in result
+    assert "Authentication failed" in result
 
 
 # --- integration tests ---

@@ -4,6 +4,7 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from sonar_mcp.client import SonarClient
+from sonar_mcp.exceptions import SonarError
 from sonar_mcp.models import QualityGateParams
 
 
@@ -24,9 +25,12 @@ async def get_quality_gate(
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
-    status = await client.get_quality_gate_status(
-        QualityGateParams(project_key=project_key, organization=org)
-    )
+    try:
+        status = await client.get_quality_gate_status(
+            QualityGateParams(project_key=project_key, organization=org)
+        )
+    except SonarError as e:
+        return f"Error retrieving quality gate status: {e}"
 
     url = f"https://sonarcloud.io/dashboard?id={project_key}"
     if org:
