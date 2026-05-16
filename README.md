@@ -106,8 +106,8 @@ Once registered, Claude can call tools directly:
 | Project setup and documentation | Done |
 | Pydantic models for SonarCloud API responses | Done |
 | `get_quality_gate` tool | Done |
-| `get_issues` tool | Planned |
-| `get_issue_summary` tool | Planned |
+| `get_issues` tool | Done |
+| `get_issue_summary` tool | Done |
 | Integration tests against real SonarCloud API | Planned |
 | Register server with Claude Code | Planned |
 
