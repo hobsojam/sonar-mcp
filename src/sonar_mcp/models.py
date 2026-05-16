@@ -52,3 +52,26 @@ class IssueStatus(StrEnum):
     REOPENED = "REOPENED"
     RESOLVED = "RESOLVED"
     CLOSED = "CLOSED"
+
+
+class Issue(BaseModel):
+    key: str
+    severity: IssueSeverity
+    type: IssueType
+    status: IssueStatus
+    message: str
+    component: str
+    rule: str
+
+
+class IssuesResponse(BaseModel):
+    issues: list[Issue]
+    paging: Paging
+
+
+class IssuesParams(BaseModel):
+    project_key: str
+    organization: str | None = None
+    severity: IssueSeverity | None = None
+    type: IssueType | None = None
+    status: IssueStatus | None = None
