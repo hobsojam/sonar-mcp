@@ -89,6 +89,22 @@ With linting:
 ruff check src tests
 ```
 
+## Running integration tests
+
+Integration tests call the real SonarCloud API and require the following environment variables to be set:
+
+| Variable | Description |
+|----------|-------------|
+| `SONAR_TOKEN` | A valid SonarCloud API token |
+| `SONAR_DEFAULT_ORG` | The SonarCloud organization slug to test against |
+| `SONAR_DEFAULT_PROJECT` | The SonarCloud project key to test against |
+
+Run them with:
+
+```bash
+pytest -m integration
+```
+
 ## Usage examples
 
 Once registered, Claude can call tools directly:
@@ -108,8 +124,8 @@ Once registered, Claude can call tools directly:
 | `get_quality_gate` tool | Done |
 | `get_issues` tool | Done |
 | `get_issue_summary` tool | Done |
-| Integration tests against real SonarCloud API | Planned |
-| Register server with Claude Code | Planned |
+| Integration tests against real SonarCloud API | Done |
+| Register server with Claude Code | Done |
 
 ## Project structure
 

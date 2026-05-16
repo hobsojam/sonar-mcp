@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "sonar": {
+      "command": "python",
+      "args": ["-m", "sonar_mcp"],
+      "env": {
+        "SONAR_TOKEN": "${SONAR_TOKEN}",
+        "SONAR_DEFAULT_ORG": "${SONAR_DEFAULT_ORG}",
+        "SONAR_DEFAULT_PROJECT": "${SONAR_DEFAULT_PROJECT}"
+      }
+    }
+  }
+}
