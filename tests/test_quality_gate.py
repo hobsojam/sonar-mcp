@@ -1,3 +1,6 @@
+import json
+import os
+
 import httpx
 import pytest
 import respx
@@ -64,3 +67,19 @@ async def test_raises_on_404(monkeypatch: pytest.MonkeyPatch) -> None:
         mock.get(_PATH).mock(return_value=httpx.Response(404))
         with pytest.raises(httpx.HTTPStatusError):
             await get_quality_gate("nonexistent-project")
+
+
+@pytest.mark.integration
+async def test_get_quality_gate_returns_valid_json_with_status() -> None:
+    token = os.environ.get("SONAR_TOKEN")
+    organization = os.environ.get("SONAR_DEFAULT_ORG")
+    project_key = os.environ.get("SONAR_DEFAULT_PROJECT")
+
+    if not token or not organization or not project_key:
+        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, and SONAR_DEFAULT_PROJECT must be set")
+
+    result = await get_quality_gate(project_key, organization)
+
+    assert result, "result must be a non-empty string"
+    parsed = json.loads(result)
+    assert "status" in parsed

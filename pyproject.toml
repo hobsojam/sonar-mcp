@@ -60,7 +60,8 @@ known-first-party = ["sonar_mcp"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov=sonar_mcp --cov-report=term-missing --cov-report=xml"
+addopts = "--cov=sonar_mcp --cov-report=term-missing --cov-report=xml -m 'not integration'"
+markers = ["integration: marks tests as integration tests (require real SonarCloud credentials)"]
 
 [tool.coverage.run]
 source = ["src"]
