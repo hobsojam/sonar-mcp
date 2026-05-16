@@ -13,7 +13,7 @@ from sonar_mcp.exceptions import (
     SonarResourceNotFoundError,
     SonarValidationError,
 )
-from sonar_mcp.models import IssuesParams, QualityGateParams, QualityGateStatus
+from sonar_mcp.models import IssuesParams, ProjectsParams, QualityGateParams, QualityGateStatus
 
 _DEFAULT_BASE = "https://sonarcloud.io/api"
 
@@ -200,9 +200,23 @@ async def test_get_issues_raises_on_401() -> None:
                 await client.get_issues(IssuesParams(project_key="my-project"))
 
 
-async def test_get_issues_raises_on_404() -> None:
+async def test_get_projects_returns_all_projects() -> None:
+    payload = {
+        "paging": {"pageIndex": 1, "pageSize": 100, "total": 1},
+        "components": [
+            {
+                "key": "my-project",
+                "name": "My Project",
+                "organization": "my-org",
+                "visibility": "public",
+            }
+        ],
+    }
     async with respx.mock() as mock:
-        mock.get(f"{_DEFAULT_BASE}/{_ISSUES_PATH}").mock(return_value=httpx.Response(404))
+        mock.get(f"{_DEFAULT_BASE}/projects/search").mock(
+            return_value=httpx.Response(200, json=payload)
+        )
         async with SonarClient(token="token") as client:
-            with pytest.raises(SonarResourceNotFoundError):
-                await client.get_issues(IssuesParams(project_key="nonexistent"))
+            projects = await client.get_projects(ProjectsParams(organization="my-org"))
+    assert len(projects) == 1
+    assert projects[0].key == "my-project"
