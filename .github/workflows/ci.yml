@@ -14,11 +14,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: uv sync --frozen --extra dev
       - name: Lint and format check
-        run: pre-commit run --all-files
+        run: uv run pre-commit run --all-files
       - name: Type check
-        run: mypy src
+        run: uv run mypy src
       - name: Tests
-        run: pytest || [ "$?" = "5" ]
+        run: uv run pytest || [ "$?" = "5" ]
