@@ -4,10 +4,17 @@ from typing import Self
 import httpx
 from pydantic import BaseModel
 
-from sonar_mcp.models import QualityGateParams, QualityGateProjectStatus
+from sonar_mcp.models import (
+    Issue,
+    IssuesParams,
+    IssuesResponse,
+    QualityGateParams,
+    QualityGateProjectStatus,
+)
 
 _DEFAULT_BASE_URL = "https://sonarcloud.io/api"
 _DEFAULT_TIMEOUT = 30.0
+_PAGE_SIZE = 500
 
 
 class _QualityGateResponse(BaseModel):
@@ -29,6 +36,33 @@ class SonarClient:
         response = await self.get("qualitygates/project_status", params=query)
         response.raise_for_status()
         return _QualityGateResponse.model_validate(response.json()).projectStatus
+
+    async def get_issues(self, params: IssuesParams) -> list[Issue]:
+        query: dict[str, str] = {
+            "componentKeys": params.project_key,
+            "ps": str(_PAGE_SIZE),
+        }
+        if params.organization is not None:
+            query["organization"] = params.organization
+        if params.severity is not None:
+            query["severities"] = params.severity.value
+        if params.type is not None:
+            query["types"] = params.type.value
+        if params.status is not None:
+            query["statuses"] = params.status.value
+
+        all_issues: list[Issue] = []
+        page = 1
+        while True:
+            query["p"] = str(page)
+            response = await self.get("issues/search", params=query)
+            response.raise_for_status()
+            parsed = IssuesResponse.model_validate(response.json())
+            all_issues.extend(parsed.issues)
+            if len(all_issues) >= parsed.paging.total:
+                break
+            page += 1
+        return all_issues
 
     async def get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
         return await self._http.get(f"{self._base_url}/{path.lstrip('/')}", params=params)
