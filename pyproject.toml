@@ -60,7 +60,7 @@ known-first-party = ["sonar_mcp"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov=sonar_mcp --cov-report=term-missing"
+addopts = "--cov=sonar_mcp --cov-report=term-missing --cov-report=xml"
 
 [tool.coverage.run]
 source = ["src"]
