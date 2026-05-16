@@ -74,4 +74,4 @@ class IssuesParams(BaseModel):
     organization: str | None = None
     severity: IssueSeverity | None = None
     type: IssueType | None = None
-    status: IssueStatus | None = None
+    statuses: list[IssueStatus] | None = None

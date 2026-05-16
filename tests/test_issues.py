@@ -69,8 +69,8 @@ async def test_get_issues_status_filter_is_passed_to_api(
     monkeypatch.setenv("SONAR_TOKEN", "test-token")
     async with respx.mock() as mock:
         route = mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([_ISSUE])))
-        await get_issues("my-project", status=IssueStatus.OPEN)
-    assert b"statuses=OPEN" in route.calls[0].request.url.query
+        await get_issues("my-project", status=IssueStatus.CONFIRMED)
+    assert b"statuses=CONFIRMED" in route.calls[0].request.url.query
 
 
 async def test_get_issues_falls_back_to_sonar_default_org(
@@ -156,6 +156,19 @@ async def test_summary_returns_zero_counts_when_no_issues(
     counts = json.loads(result)
     assert all(v == 0 for v in counts["by_severity"].values())
     assert all(v == 0 for v in counts["by_type"].values())
+
+
+async def test_summary_passes_all_unresolved_statuses_to_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SONAR_TOKEN", "test-token")
+    async with respx.mock() as mock:
+        route = mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([])))
+        await get_issue_summary("my-project")
+    query = route.calls[0].request.url.query
+    assert b"OPEN" in query
+    assert b"CONFIRMED" in query
+    assert b"REOPENED" in query
 
 
 async def test_summary_falls_back_to_sonar_default_org(
