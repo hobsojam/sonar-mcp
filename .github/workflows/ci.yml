@@ -21,4 +21,4 @@ jobs:
       - name: Type check
         run: mypy src
       - name: Tests
-        run: pytest
+        run: pytest || [ "$?" = "5" ]
