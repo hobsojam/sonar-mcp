@@ -104,8 +104,8 @@ Once registered, Claude can call tools directly:
 | Feature | Status |
 |---------|--------|
 | Project setup and documentation | Done |
-| Pydantic models for SonarCloud API responses | Planned |
-| `get_quality_gate` tool | Planned |
+| Pydantic models for SonarCloud API responses | Done |
+| `get_quality_gate` tool | Done |
 | `get_issues` tool | Planned |
 | `get_issue_summary` tool | Planned |
 | Integration tests against real SonarCloud API | Planned |
