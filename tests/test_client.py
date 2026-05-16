@@ -5,6 +5,14 @@ import pytest
 import respx
 
 from sonar_mcp.client import SonarClient
+from sonar_mcp.exceptions import (
+    SonarAuthenticationError,
+    SonarError,
+    SonarPermissionError,
+    SonarRateLimitError,
+    SonarResourceNotFoundError,
+    SonarValidationError,
+)
 from sonar_mcp.models import IssuesParams, QualityGateParams, QualityGateStatus
 
 _DEFAULT_BASE = "https://sonarcloud.io/api"
@@ -81,7 +89,7 @@ async def test_get_quality_gate_status_raises_on_401() -> None:
     async with respx.mock() as mock:
         mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(return_value=httpx.Response(401))
         async with SonarClient(token="bad-token") as client:
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(SonarAuthenticationError):
                 await client.get_quality_gate_status(QualityGateParams(project_key="my-project"))
 
 
@@ -89,8 +97,48 @@ async def test_get_quality_gate_status_raises_on_404() -> None:
     async with respx.mock() as mock:
         mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(return_value=httpx.Response(404))
         async with SonarClient(token="token") as client:
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(SonarResourceNotFoundError):
                 await client.get_quality_gate_status(QualityGateParams(project_key="nonexistent"))
+
+
+async def test_get_quality_gate_status_raises_on_400_with_message() -> None:
+    payload = {"errors": [{"msg": "Project key is required"}]}
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(400, json=payload)
+        )
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarValidationError) as exc:
+                await client.get_quality_gate_status(QualityGateParams(project_key=""))
+    assert "Project key is required" in str(exc.value)
+
+
+async def test_get_quality_gate_status_raises_on_403() -> None:
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(403, text="Forbidden")
+        )
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarPermissionError) as exc:
+                await client.get_quality_gate_status(QualityGateParams(project_key="my-project"))
+    assert "Permission denied" in str(exc.value)
+
+
+async def test_get_quality_gate_status_raises_on_429() -> None:
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(return_value=httpx.Response(429))
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarRateLimitError):
+                await client.get_quality_gate_status(QualityGateParams(project_key="my-project"))
+
+
+async def test_get_quality_gate_status_raises_on_500() -> None:
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(return_value=httpx.Response(500))
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarError) as exc:
+                await client.get_quality_gate_status(QualityGateParams(project_key="my-project"))
+    assert "API request failed with status 500" in str(exc.value)
 
 
 # --- Issues Tests ---
@@ -148,7 +196,7 @@ async def test_get_issues_raises_on_401() -> None:
     async with respx.mock() as mock:
         mock.get(f"{_DEFAULT_BASE}/{_ISSUES_PATH}").mock(return_value=httpx.Response(401))
         async with SonarClient(token="bad-token") as client:
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(SonarAuthenticationError):
                 await client.get_issues(IssuesParams(project_key="my-project"))
 
 
@@ -156,5 +204,5 @@ async def test_get_issues_raises_on_404() -> None:
     async with respx.mock() as mock:
         mock.get(f"{_DEFAULT_BASE}/{_ISSUES_PATH}").mock(return_value=httpx.Response(404))
         async with SonarClient(token="token") as client:
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(SonarResourceNotFoundError):
                 await client.get_issues(IssuesParams(project_key="nonexistent"))

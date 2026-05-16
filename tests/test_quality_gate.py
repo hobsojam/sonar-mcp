@@ -61,18 +61,20 @@ async def test_falls_back_to_sonar_default_org(
     assert b"organization=my-org" in route.calls[0].request.url.query
 
 
-async def test_raises_on_401(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+async def test_returns_error_message_on_401(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
     async with respx.mock() as mock:
         mock.get(_PATH).mock(return_value=httpx.Response(401))
-        with pytest.raises(httpx.HTTPStatusError):
-            await get_quality_gate("my-project", ctx=sonar_ctx)
+        result = await get_quality_gate("my-project", ctx=sonar_ctx)
+    assert "Error retrieving quality gate status" in result
+    assert "Authentication failed" in result
 
 
-async def test_raises_on_404(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+async def test_returns_error_message_on_404(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
     async with respx.mock() as mock:
-        mock.get(_PATH).mock(return_value=httpx.Response(404))
-        with pytest.raises(httpx.HTTPStatusError):
-            await get_quality_gate("nonexistent-project", ctx=sonar_ctx)
+        mock.get(_PATH).mock(return_value=httpx.Response(404, text="Project not found"))
+        result = await get_quality_gate("nonexistent-project", ctx=sonar_ctx)
+    assert "Error retrieving quality gate status" in result
+    assert "Resource not found" in result
 
 
 @pytest.mark.integration
