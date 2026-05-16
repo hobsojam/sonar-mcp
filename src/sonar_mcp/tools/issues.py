@@ -29,16 +29,17 @@ async def get_issues(
                 organization=org,
                 severity=severity,
                 type=type,
-                status=status,
+                statuses=[status] if status is not None else None,
             )
         )
     return json.dumps([issue.model_dump() for issue in issues], indent=2)
 
 
 async def get_issue_summary(project_key: str, organization: str | None = None) -> str:
-    """Use this to get a high-level breakdown of open issues in a SonarCloud project,
+    """Use this to get a high-level breakdown of unresolved issues in a SonarCloud project,
     grouped by severity and type.
 
+    Counts issues with status OPEN, CONFIRMED, or REOPENED (all unresolved states).
     Returns counts only — use get_issues if you need the individual issue details.
     """
     token = os.environ["SONAR_TOKEN"]
@@ -50,7 +51,7 @@ async def get_issue_summary(project_key: str, organization: str | None = None) -
             IssuesParams(
                 project_key=project_key,
                 organization=org,
-                status=IssueStatus.OPEN,
+                statuses=[IssueStatus.OPEN, IssueStatus.CONFIRMED, IssueStatus.REOPENED],
             )
         )
 
