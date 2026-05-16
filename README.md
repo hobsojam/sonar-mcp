@@ -38,6 +38,7 @@ python -m venv .venv
 .venv\Scripts\activate        # Windows
 # or: source .venv/bin/activate  # macOS/Linux
 pip install -e ".[dev]"
+pre-commit install
 ```
 
 ### 3. Configure environment
