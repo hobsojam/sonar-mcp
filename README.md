@@ -61,8 +61,8 @@ Add to `.claude/settings.json`:
 {
   "mcpServers": {
     "sonar": {
-      "command": "python",
-      "args": ["-m", "sonar_mcp"],
+      "command": "uv",
+      "args": ["run", "python", "-m", "sonar_mcp"],
       "env": {
         "SONAR_TOKEN": "${SONAR_TOKEN}"
       }
