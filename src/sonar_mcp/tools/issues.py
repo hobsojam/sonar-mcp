@@ -36,6 +36,13 @@ async def get_issues(
             statuses=[status] if status is not None else None,
         )
     )
+
+    for issue in issues:
+        url = f"https://sonarcloud.io/project/issues?id={project_key}&issues={issue.key}&open={issue.key}"
+        if org:
+            url += f"&org={org}"
+        issue.url = url
+
     return json.dumps([issue.model_dump() for issue in issues], indent=2)
 
 
@@ -69,4 +76,8 @@ async def get_issue_summary(
         by_severity[issue.severity.value] += 1
         by_type[issue.type.value] += 1
 
-    return json.dumps({"by_severity": by_severity, "by_type": by_type}, indent=2)
+    url = f"https://sonarcloud.io/project/issues?id={project_key}&resolved=false"
+    if org:
+        url += f"&org={org}"
+
+    return json.dumps({"by_severity": by_severity, "by_type": by_type, "url": url}, indent=2)

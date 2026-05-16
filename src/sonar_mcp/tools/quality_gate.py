@@ -27,4 +27,10 @@ async def get_quality_gate(
     status = await client.get_quality_gate_status(
         QualityGateParams(project_key=project_key, organization=org)
     )
+
+    url = f"https://sonarcloud.io/dashboard?id={project_key}"
+    if org:
+        url += f"&org={org}"
+    status.url = url
+
     return status.model_dump_json(indent=2)

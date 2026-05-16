@@ -30,6 +30,14 @@ async def test_returns_ok_status_for_passing_gate(sonar_ctx: Context) -> None:  
         mock.get(_PATH).mock(return_value=httpx.Response(200, json=_PASSING))
         result = await get_quality_gate("my-project", ctx=sonar_ctx)
     assert '"status": "OK"' in result
+    assert '"url": "https://sonarcloud.io/dashboard?id=my-project"' in result
+
+
+async def test_includes_org_in_url_if_provided(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(200, json=_PASSING))
+        result = await get_quality_gate("my-project", organization="my-org", ctx=sonar_ctx)
+    assert '"url": "https://sonarcloud.io/dashboard?id=my-project&org=my-org"' in result
 
 
 async def test_returns_error_status_and_conditions_for_failing_gate(

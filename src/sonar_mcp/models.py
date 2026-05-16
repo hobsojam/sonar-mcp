@@ -19,6 +19,7 @@ class QualityGateCondition(BaseModel):
 class QualityGateProjectStatus(BaseModel):
     status: QualityGateStatus
     conditions: list[QualityGateCondition]
+    url: str | None = None
 
 
 class QualityGateParams(BaseModel):
@@ -62,6 +63,7 @@ class Issue(BaseModel):
     message: str
     component: str
     rule: str
+    url: str | None = None
 
 
 class IssuesResponse(BaseModel):
