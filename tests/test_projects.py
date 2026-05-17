@@ -42,3 +42,33 @@ async def test_list_projects_includes_query_param(
         route = mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([])))
         await list_projects(query="my-query", ctx=sonar_ctx)
     assert b"q=my-query" in route.calls[0].request.url.query
+
+
+async def test_list_projects_returns_error_on_401(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(401))
+        result = await list_projects(organization="my-org", ctx=sonar_ctx)
+    assert "Error listing projects" in result
+    assert "Authentication failed" in result
+
+
+async def test_list_projects_returns_error_on_403(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(403, text="Forbidden"))
+        result = await list_projects(organization="my-org", ctx=sonar_ctx)
+    assert "Error listing projects" in result
+    assert "Permission denied" in result
+
+
+async def test_list_projects_returns_error_on_404(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(404, text="Organization not found"))
+        result = await list_projects(organization="nonexistent-org", ctx=sonar_ctx)
+    assert "Error listing projects" in result
+    assert "Resource not found" in result
