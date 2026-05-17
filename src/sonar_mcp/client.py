@@ -39,6 +39,7 @@ _DEFAULT_ISSUES_TTL = 60
 _DEFAULT_PROJECTS_TTL = 300
 
 _CACHE_MAX_SIZE = 256
+_UNEXPECTED_RESPONSE_SHAPE = "Unexpected response shape from SonarCloud API"
 
 logger = logging.getLogger(__name__)
 _SYS_RANDOM = random.SystemRandom()
@@ -98,7 +99,7 @@ class SonarClient:
         try:
             result = _QualityGateResponse.model_validate(response.json()).projectStatus
         except ValidationError as exc:
-            raise SonarError("Unexpected response shape from SonarCloud API") from exc
+            raise SonarError(_UNEXPECTED_RESPONSE_SHAPE) from exc
         self._quality_gate_cache[cache_key] = result
         return result
 
@@ -122,7 +123,7 @@ class SonarClient:
             try:
                 parsed = ProjectsResponse.model_validate(response.json())
             except ValidationError as exc:
-                raise SonarError("Unexpected response shape from SonarCloud API") from exc
+                raise SonarError(_UNEXPECTED_RESPONSE_SHAPE) from exc
             all_projects.extend(parsed.components)
             if len(all_projects) >= parsed.paging.total:
                 break
@@ -158,7 +159,7 @@ class SonarClient:
             try:
                 parsed = IssuesResponse.model_validate(response.json())
             except ValidationError as exc:
-                raise SonarError("Unexpected response shape from SonarCloud API") from exc
+                raise SonarError(_UNEXPECTED_RESPONSE_SHAPE) from exc
             all_issues.extend(parsed.issues)
             if len(all_issues) >= parsed.paging.total:
                 break
