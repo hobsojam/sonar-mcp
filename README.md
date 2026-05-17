@@ -190,6 +190,7 @@ Observability: retry attempts are logged at WARNING level and give-up events at 
 | Security scanning with pip-audit and bandit | Done |
 | Smart TTL-based caching for API responses | Done |
 | Configurable logging via `LOG_LEVEL` env var | Done |
+| `SONAR_DEFAULT_PROJECT` fallback in tools | Done |
 
 ## Project structure
 

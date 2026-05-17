@@ -119,6 +119,29 @@ async def test_get_issues_returns_error_on_404(sonar_ctx: Context) -> None:  # t
     assert "Resource not found" in result
 
 
+async def test_get_issues_uses_default_project_env_var_when_no_project_key_given(
+    monkeypatch: pytest.MonkeyPatch,
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_ORG", raising=False)
+    monkeypatch.setenv("SONAR_DEFAULT_PROJECT", "env-project")
+    async with respx.mock() as mock:
+        route = mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([_ISSUE])))
+        result = await get_issues(ctx=sonar_ctx)
+    assert b"componentKeys=env-project" in route.calls[0].request.url.query
+    assert len(json.loads(result)) == 1
+
+
+async def test_get_issues_returns_error_when_no_project_key_and_no_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_PROJECT", raising=False)
+    result = await get_issues(ctx=sonar_ctx)
+    assert "project_key is required" in result
+    assert "SONAR_DEFAULT_PROJECT" in result
+
+
 # --- get_issue_summary ---
 
 
@@ -206,6 +229,30 @@ async def test_summary_returns_error_on_401(sonar_ctx: Context) -> None:  # type
         result = await get_issue_summary("my-project", ctx=sonar_ctx)
     assert "Error retrieving issue summary" in result
     assert "Authentication failed" in result
+
+
+async def test_get_issue_summary_uses_default_project_env_var_when_no_project_key_given(
+    monkeypatch: pytest.MonkeyPatch,
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_ORG", raising=False)
+    monkeypatch.setenv("SONAR_DEFAULT_PROJECT", "env-project")
+    async with respx.mock() as mock:
+        route = mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([])))
+        result = await get_issue_summary(ctx=sonar_ctx)
+    assert b"componentKeys=env-project" in route.calls[0].request.url.query
+    counts = json.loads(result)
+    assert "by_severity" in counts
+
+
+async def test_get_issue_summary_returns_error_when_no_project_key_and_no_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_PROJECT", raising=False)
+    result = await get_issue_summary(ctx=sonar_ctx)
+    assert "project_key is required" in result
+    assert "SONAR_DEFAULT_PROJECT" in result
 
 
 # --- integration tests ---

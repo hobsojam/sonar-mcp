@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_issues(
-    project_key: str,
+    project_key: str | None = None,
     organization: str | None = None,
     severity: IssueSeverity | None = None,
     issue_type: IssueType | None = None,
@@ -27,13 +27,16 @@ async def get_issues(
     severity, issue_type, or status. Use get_issue_summary instead if you only need
     aggregate counts.
     """
+    project = project_key if project_key is not None else os.environ.get("SONAR_DEFAULT_PROJECT")
+    if not project:
+        return "Error: project_key is required (or set SONAR_DEFAULT_PROJECT)"
     client: SonarClient = ctx.request_context.lifespan_context
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
     logger.info(
         "get_issues project=%s org=%s severity=%s issue_type=%s status=%s",
-        project_key,
+        project,
         org,
         severity,
         issue_type,
@@ -42,7 +45,7 @@ async def get_issues(
     try:
         issues = await client.get_issues(
             IssuesParams(
-                project_key=project_key,
+                project_key=project,
                 organization=org,
                 severity=severity,
                 type=issue_type,
@@ -53,7 +56,9 @@ async def get_issues(
         return f"Error retrieving issues: {e}"
 
     def _url(issue_key: str) -> str:
-        base = f"https://sonarcloud.io/project/issues?id={project_key}&issues={issue_key}&open={issue_key}"
+        base = (
+            f"https://sonarcloud.io/project/issues?id={project}&issues={issue_key}&open={issue_key}"
+        )
         return base + f"&org={org}" if org else base
 
     return json.dumps(
@@ -62,7 +67,7 @@ async def get_issues(
 
 
 async def get_issue_summary(
-    project_key: str,
+    project_key: str | None = None,
     organization: str | None = None,
     *,
     ctx: Context[Any, SonarClient, Any],
@@ -73,15 +78,18 @@ async def get_issue_summary(
     Counts issues with status OPEN, CONFIRMED, or REOPENED (all unresolved states).
     Returns counts only — use get_issues if you need the individual issue details.
     """
+    project = project_key if project_key is not None else os.environ.get("SONAR_DEFAULT_PROJECT")
+    if not project:
+        return "Error: project_key is required (or set SONAR_DEFAULT_PROJECT)"
     client: SonarClient = ctx.request_context.lifespan_context
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
-    logger.info("get_issue_summary project=%s org=%s", project_key, org)
+    logger.info("get_issue_summary project=%s org=%s", project, org)
     try:
         issues = await client.get_issues(
             IssuesParams(
-                project_key=project_key,
+                project_key=project,
                 organization=org,
                 statuses=[IssueStatus.OPEN, IssueStatus.CONFIRMED, IssueStatus.REOPENED],
             )
@@ -95,7 +103,7 @@ async def get_issue_summary(
         by_severity[issue.severity.value] += 1
         by_type[issue.type.value] += 1
 
-    url = f"https://sonarcloud.io/project/issues?id={project_key}&resolved=false"
+    url = f"https://sonarcloud.io/project/issues?id={project}&resolved=false"
     if org:
         url += f"&org={org}"
 
