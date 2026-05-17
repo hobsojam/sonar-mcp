@@ -350,6 +350,38 @@ async def test_get_projects_cache_expires_after_ttl() -> None:
     assert route.call_count == 2
 
 
+# --- Malformed 200 Response Tests ---
+
+
+async def test_get_quality_gate_status_raises_sonar_error_on_malformed_200() -> None:
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(200, json={})
+        )
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarError) as exc:
+                await client.get_quality_gate_status(QualityGateParams(project_key="my-project"))
+    assert "Unexpected response shape" in str(exc.value)
+
+
+async def test_get_issues_raises_sonar_error_on_malformed_200() -> None:
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_ISSUES_PATH}").mock(return_value=httpx.Response(200, json={}))
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarError) as exc:
+                await client.get_issues(IssuesParams(project_key="my-project"))
+    assert "Unexpected response shape" in str(exc.value)
+
+
+async def test_get_projects_raises_sonar_error_on_malformed_200() -> None:
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/projects/search").mock(return_value=httpx.Response(200, json={}))
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarError) as exc:
+                await client.get_projects(ProjectsParams(organization="my-org"))
+    assert "Unexpected response shape" in str(exc.value)
+
+
 async def test_separate_client_instances_have_independent_caches() -> None:
     async with respx.mock() as mock:
         route = mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(

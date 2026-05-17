@@ -64,6 +64,16 @@ async def test_list_projects_returns_error_on_403(
     assert "Permission denied" in result
 
 
+async def test_list_projects_returns_error_on_malformed_200_response(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(200, json={}))
+        result = await list_projects(organization="my-org", ctx=sonar_ctx)
+    assert "Error" in result
+    assert "Unexpected response shape" in result
+
+
 async def test_list_projects_returns_error_on_404(
     sonar_ctx: Context,  # type: ignore[type-arg]
 ) -> None:
