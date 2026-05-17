@@ -1,0 +1,53 @@
+name: Prevent noqa in PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  no-noqa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+
+      - name: Build changed-file list
+        run: |
+          git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD > changed.txt
+          if [ ! -s changed.txt ]; then echo "No changed files"; exit 0; fi
+
+      - name: Scan changed files for noqa
+        env:
+          EXCLUDE_GLOBS: "tests/* docs/* .venv/**"  # comma-separated globs to ignore
+        run: |
+          set -euo pipefail
+          pha=0
+          # helper to check exclude globs
+          matches_noqa() {
+            grep -EnH "#\s*(ruff:)?\s*noqa\b" "$1" || return 1
+          }
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            # skip removed files
+            [ ! -f "$f" ] && continue
+            # quick exclude by glob list
+            skip=0
+            IFS=',' read -ra G <<< "$EXCLUDE_GLOBS"
+            for g in "${G[@]}"; do
+              if [[ "$f" == $g ]]; then skip=1; break; fi
+            done
+            [ $skip -eq 1 ] && continue
+            if matches_noqa "$f"; then
+              echo "::error file=$f::Found noqa directive"
+              pha=1
+            fi
+          done < changed.txt
+          if [ $pha -ne 0 ]; then
+            echo "ERROR: PR contains '# noqa' directives. Remove them or explain justification in PR and request an override."
+            exit 1
+          fi
