@@ -9,7 +9,6 @@ class Project(BaseModel):
     organization: str
     visibility: str
     lastAnalysisDate: str | None = None
-    url: str | None = None
 
 
 class ProjectsResponse(BaseModel):

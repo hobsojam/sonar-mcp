@@ -54,5 +54,8 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
+# Claude Code — user-specific, never commit
+.claude/settings.local.json
+
 # Logs
 *.log

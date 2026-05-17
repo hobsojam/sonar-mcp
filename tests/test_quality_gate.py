@@ -40,6 +40,22 @@ async def test_includes_org_in_url_if_provided(sonar_ctx: Context) -> None:  # t
     assert '"url": "https://sonarcloud.io/dashboard?id=my-project&org=my-org"' in result
 
 
+async def test_condition_without_threshold_fields_is_parsed_successfully(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    payload = {
+        "projectStatus": {
+            "status": "OK",
+            "conditions": [{"metricKey": "coverage", "status": "OK"}],
+        }
+    }
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(200, json=payload))
+        result = await get_quality_gate("my-project", ctx=sonar_ctx)
+    assert '"status": "OK"' in result
+    assert '"metricKey": "coverage"' in result
+
+
 async def test_returns_error_status_and_conditions_for_failing_gate(
     sonar_ctx: Context,  # type: ignore[type-arg]
 ) -> None:

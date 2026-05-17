@@ -12,14 +12,13 @@ class QualityGateStatus(StrEnum):
 class QualityGateCondition(BaseModel):
     metricKey: str
     status: QualityGateStatus
-    actualValue: str
-    errorThreshold: str
+    actualValue: str | None = None
+    errorThreshold: str | None = None
 
 
 class QualityGateProjectStatus(BaseModel):
     status: QualityGateStatus
     conditions: list[QualityGateCondition]
-    url: str | None = None
 
 
 class QualityGateParams(BaseModel):
