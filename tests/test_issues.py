@@ -32,8 +32,10 @@ def _page(issues: list[dict], total: int | None = None) -> dict:  # type: ignore
 
 
 async def test_get_issues_returns_all_issues_with_no_filters(
+    monkeypatch: pytest.MonkeyPatch,
     sonar_ctx: Context,  # type: ignore[type-arg]
 ) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_ORG", raising=False)
     async with respx.mock() as mock:
         mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([_ISSUE])))
         result = await get_issues("my-project", ctx=sonar_ctx)
@@ -128,8 +130,10 @@ _MIXED_ISSUES = [
 
 
 async def test_summary_returns_correct_counts_by_severity(
+    monkeypatch: pytest.MonkeyPatch,
     sonar_ctx: Context,  # type: ignore[type-arg]
 ) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_ORG", raising=False)
     async with respx.mock() as mock:
         mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page(_MIXED_ISSUES)))
         result = await get_issue_summary("my-project", ctx=sonar_ctx)

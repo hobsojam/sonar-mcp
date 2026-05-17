@@ -25,7 +25,11 @@ _FAILING = {
 }
 
 
-async def test_returns_ok_status_for_passing_gate(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+async def test_returns_ok_status_for_passing_gate(
+    monkeypatch: pytest.MonkeyPatch,
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_ORG", raising=False)
     async with respx.mock() as mock:
         mock.get(_PATH).mock(return_value=httpx.Response(200, json=_PASSING))
         result = await get_quality_gate("my-project", ctx=sonar_ctx)
