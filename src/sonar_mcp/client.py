@@ -40,6 +40,8 @@ _DEFAULT_PROJECTS_TTL = 300
 
 _CACHE_MAX_SIZE = 256
 
+_METRICS_HOOK_ERROR = "metrics hook error: %s"
+
 logger = logging.getLogger(__name__)
 _SYS_RANDOM = random.SystemRandom()
 
@@ -229,7 +231,7 @@ class SonarClient:
                                 },
                             )
                         except Exception as e:
-                            logger.debug("metrics hook error: %s", e)
+                            logger.debug(_METRICS_HOOK_ERROR, e)
                     await asyncio.sleep(delay)
                     continue
                 # give up
@@ -241,7 +243,7 @@ class SonarClient:
                             {"url": url, "attempts": attempt, "reason": "transport_error"},
                         )
                     except Exception as e:
-                        logger.debug("metrics hook error: %s", e)
+                        logger.debug(_METRICS_HOOK_ERROR, e)
                 raise
 
             # Handle HTTP responses
@@ -286,7 +288,7 @@ class SonarClient:
                             },
                         )
                     except Exception as e:
-                        logger.debug("metrics hook error: %s", e)
+                        logger.debug(_METRICS_HOOK_ERROR, e)
                 await asyncio.sleep(delay)
                 continue
 
@@ -315,7 +317,7 @@ class SonarClient:
                             },
                         )
                     except Exception as e:
-                        logger.debug("metrics hook error: %s", e)
+                        logger.debug(_METRICS_HOOK_ERROR, e)
                 await asyncio.sleep(delay)
                 continue
 
