@@ -136,14 +136,20 @@ sonar-mcp/
 │       ├── __init__.py
 │       ├── __main__.py       # MCP server entry point
 │       ├── client.py         # SonarCloud HTTP client
+│       ├── exceptions.py     # Shared exception types
 │       ├── models.py         # Pydantic request/response models
 │       └── tools/
-│           ├── quality_gate.py
-│           └── issues.py
+│           ├── __init__.py
+│           ├── issues.py
+│           ├── projects.py
+│           └── quality_gate.py
 ├── tests/
 │   ├── conftest.py
-│   ├── test_quality_gate.py
-│   └── test_issues.py
+│   ├── test_client.py
+│   ├── test_issues.py
+│   ├── test_main.py
+│   ├── test_projects.py
+│   └── test_quality_gate.py
 ├── pyproject.toml
 ├── .env.example
 ├── .gitignore
