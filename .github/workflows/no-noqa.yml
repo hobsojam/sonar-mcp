@@ -23,7 +23,8 @@ jobs:
 
       - name: Scan changed files for noqa
         env:
-          EXCLUDE_GLOBS: "tests/* docs/* .venv/**"  # comma-separated globs to ignore
+          # Paths to ignore; include this workflow so it can contain its own noqa
+          EXCLUDE_GLOBS: "tests/* docs/* .venv/** .github/workflows/no-noqa.yml"  # comma-separated globs to ignore
         run: |
           set -euo pipefail
           pha=0
