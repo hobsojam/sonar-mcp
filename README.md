@@ -163,6 +163,18 @@ Once registered, Claude can call tools directly:
 
 ## Roadmap
 
+### HTTP retries and observability
+This project now implements a small internal retry/backoff strategy for SonarCloud API calls in SonarClient.
+
+- Retries: network errors, 5xx responses, and 429 rate-limits
+- Defaults: max_retries=3, base_backoff=0.5s, max_backoff=10s, jitter=20%
+- Honors the `Retry-After` header when returned by SonarCloud
+- Optional `metrics_hook` parameter on SonarClient accepts a callable receiving metrics events: `"retry_attempt"` and `"retry_give_up"` with a dict payload
+
+Observability: retry attempts are logged at WARNING level and give-up events at ERROR level. The retry behavior can be configured via SonarClient constructor parameters.
+
+
+
 | Feature | Status |
 |---------|--------|
 | Project setup and documentation | Done |
