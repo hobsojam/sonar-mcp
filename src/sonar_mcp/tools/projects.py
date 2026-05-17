@@ -5,6 +5,7 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from sonar_mcp.client import SonarClient
+from sonar_mcp.exceptions import SonarError
 from sonar_mcp.models import ProjectsParams
 
 
@@ -23,7 +24,10 @@ async def list_projects(
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
-    projects = await client.get_projects(ProjectsParams(organization=org, query=query))
+    try:
+        projects = await client.get_projects(ProjectsParams(organization=org, query=query))
+    except SonarError as e:
+        return f"Error listing projects: {e}"
 
     for project in projects:
         url = f"https://sonarcloud.io/dashboard?id={project.key}"

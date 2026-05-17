@@ -93,7 +93,7 @@ class SonarClient:
         while True:
             query["p"] = str(page)
             response = await self.get("projects/search", params=query)
-            response.raise_for_status()
+            self._handle_response(response)
             parsed = ProjectsResponse.model_validate(response.json())
             all_projects.extend(parsed.components)
             if len(all_projects) >= parsed.paging.total:
