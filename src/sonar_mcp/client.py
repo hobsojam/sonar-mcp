@@ -166,7 +166,7 @@ class SonarClient:
         try:
             data = response.json()
             errors = data.get("errors", [])
-            message = errors[0].get("msg") if errors else response.text
+            message = errors[0].get("msg") or response.text if errors else response.text
         except (ValueError, KeyError, TypeError):
             errors = []
             message = response.text

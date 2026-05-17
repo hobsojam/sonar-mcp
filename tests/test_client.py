@@ -124,6 +124,19 @@ async def test_get_quality_gate_status_raises_on_403() -> None:
     assert "Permission denied" in str(exc.value)
 
 
+async def test_get_quality_gate_status_403_without_msg_key_falls_back_to_response_text() -> None:
+    payload = {"errors": [{"code": "FORBIDDEN"}]}
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(403, json=payload)
+        )
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarPermissionError) as exc:
+                await client.get_quality_gate_status(QualityGateParams(project_key="my-project"))
+    assert "None" not in str(exc.value)
+    assert "FORBIDDEN" in str(exc.value)
+
+
 async def test_get_quality_gate_status_raises_on_429() -> None:
     async with respx.mock() as mock:
         mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(return_value=httpx.Response(429))
