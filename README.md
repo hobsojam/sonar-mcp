@@ -168,8 +168,10 @@ This project now implements a small internal retry/backoff strategy for SonarClo
 
 - Retries: network errors, 5xx responses, and 429 rate-limits
 - Defaults: max_retries=3, base_backoff=0.5s, max_backoff=10s, jitter=20%
-- Honors the `Retry-After` header when returned by SonarCloud
+- Honors the `Retry-After` header when returned by SonarCloud (integer seconds or RFC 2822 date)
 - Optional `metrics_hook` parameter on SonarClient accepts a callable receiving metrics events: `"retry_attempt"` and `"retry_give_up"` with a dict payload
+
+**Known quirk:** `Retry-After` date strings formatted with a `-0000` timezone offset are parsed by Python's `email.utils.parsedate_to_datetime` as naive datetimes, which cannot be subtracted from `datetime.now(UTC)` (offset-aware). This causes a `TypeError` that is silently caught, and the delay falls back to `_backoff_delay`. RFC 2822 dates with a `GMT` or `+0000` offset parse correctly.
 
 Observability: retry attempts are logged at WARNING level and give-up events at ERROR level. The retry behavior can be configured via SonarClient constructor parameters.
 

@@ -2,7 +2,11 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-from sonar_mcp.models.common import Paging
+
+class Paging(BaseModel):
+    pageIndex: int
+    pageSize: int
+    total: int
 
 
 class IssueSeverity(StrEnum):
@@ -48,3 +52,44 @@ class IssuesParams(BaseModel):
     severity: IssueSeverity | None = None
     issue_type: IssueType | None = None
     statuses: list[IssueStatus] | None = None
+
+
+class QualityGateStatus(StrEnum):
+    OK = "OK"
+    WARN = "WARN"
+    ERROR = "ERROR"
+
+
+class QualityGateCondition(BaseModel):
+    metricKey: str
+    status: QualityGateStatus
+    actualValue: str | None = None
+    errorThreshold: str | None = None
+
+
+class QualityGateProjectStatus(BaseModel):
+    status: QualityGateStatus
+    conditions: list[QualityGateCondition]
+
+
+class QualityGateParams(BaseModel):
+    project_key: str
+    organization: str | None = None
+
+
+class Project(BaseModel):
+    key: str
+    name: str
+    organization: str
+    visibility: str
+    lastAnalysisDate: str | None = None
+
+
+class ProjectsResponse(BaseModel):
+    paging: Paging
+    components: list[Project]
+
+
+class ProjectsParams(BaseModel):
+    organization: str | None = None
+    query: str | None = None
