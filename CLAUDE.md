@@ -8,7 +8,7 @@ All security expectations are documented in [CLAUDE_SECURITY.md](CLAUDE_SECURITY
 
 ## Project overview
 
-A Python MCP server wrapping the SonarCloud REST API. Exposes named tools (`get_quality_gate`, `get_issues`, `get_issue_summary`) so Claude can query SonarCloud directly in any session without manual HTTP calls.
+A Python MCP server wrapping the SonarCloud REST API. Exposes named tools (`get_quality_gate`, `get_issues`, `get_issue_summary`, `list_projects`) so Claude can query SonarCloud directly in any session without manual HTTP calls.
 
 ## How we work
 
@@ -53,14 +53,25 @@ sonar-mcp/
 │       ├── __init__.py
 │       ├── __main__.py       # MCP server entry point
 │       ├── client.py         # SonarCloud HTTP client
-│       ├── models.py         # Pydantic request/response models
+│       ├── exceptions.py     # Typed exception hierarchy
+│       ├── models/
+│       │   ├── __init__.py
+│       │   ├── common.py     # Shared models (Paging)
+│       │   ├── issues.py
+│       │   ├── projects.py
+│       │   └── quality_gate.py
 │       └── tools/
-│           ├── quality_gate.py
-│           └── issues.py
+│           ├── __init__.py
+│           ├── issues.py
+│           ├── projects.py
+│           └── quality_gate.py
 ├── tests/
 │   ├── conftest.py
-│   ├── test_quality_gate.py
-│   └── test_issues.py
+│   ├── test_client.py
+│   ├── test_issues.py
+│   ├── test_main.py
+│   ├── test_projects.py
+│   └── test_quality_gate.py
 ├── pyproject.toml
 ├── .env.example
 ├── .gitignore
@@ -79,6 +90,7 @@ The server reads from environment variables:
 | `SONAR_TOKEN` | Yes | SonarCloud API token |
 | `SONAR_DEFAULT_ORG` | No | Default organization slug |
 | `SONAR_DEFAULT_PROJECT` | No | Default project key |
+| `LOG_LEVEL` | No | Log level for `sonar_mcp` (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Default: `WARNING` |
 
 `organization` and `project_key` can be passed as tool arguments and will override the defaults.
 
@@ -91,6 +103,7 @@ Authentication: HTTP Basic auth with the token as the username and an empty pass
 Key endpoints:
 - `GET /qualitygates/project_status` — quality gate status
 - `GET /issues/search` — issues list
+- `GET /projects/search` — projects list
 
 ## Definition of done for each tool
 

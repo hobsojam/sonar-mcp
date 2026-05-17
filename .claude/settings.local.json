@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rebase *)",
+      "Bash(git checkout *)",
+      "Bash(python -m pytest tests/test_issues.py -q)",
+      "Bash(python -m mypy --strict src/ tests/)",
+      "Bash(python *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "Bash(gh run *)",
+      "Bash(Select-String -Pattern \"sonar|project.*key|ERROR|WARN\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(git branch *)",
+      "Bash(gh issue *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\ch8jw\\\\dev\\\\sonar-mcp\\\\src\\\\sonar_mcp\\\\models\" -Force)",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"Created models directory\")",
+      "Bash(git rm *)",
+      "Bash(uv run *)",
+      "Bash(git merge *)"
+    ]
+  }
+}

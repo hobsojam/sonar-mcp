@@ -33,10 +33,10 @@ async def list_projects(
     except SonarError as e:
         return f"Error listing projects: {e}"
 
-    for project in projects:
-        url = f"https://sonarcloud.io/dashboard?id={project.key}"
-        if org:
-            url += f"&org={org}"
-        project.url = url
+    def _url(project_key: str) -> str:
+        base = f"https://sonarcloud.io/dashboard?id={project_key}"
+        return base + f"&org={org}" if org else base
 
-    return json.dumps([project.model_dump() for project in projects], indent=2)
+    return json.dumps(
+        [{**project.model_dump(), "url": _url(project.key)} for project in projects], indent=2
+    )

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import Any
@@ -39,6 +40,5 @@ async def get_quality_gate(
     url = f"https://sonarcloud.io/dashboard?id={project_key}"
     if org:
         url += f"&org={org}"
-    status.url = url
 
-    return status.model_dump_json(indent=2)
+    return json.dumps({**status.model_dump(), "url": url}, indent=2)

@@ -26,7 +26,7 @@ async def test_requests_include_basic_auth_with_token_as_username() -> None:
     async with respx.mock() as mock:
         route = mock.get(f"{_DEFAULT_BASE}/{path}").mock(return_value=httpx.Response(200))
         async with SonarClient(token="my-token") as client:
-            await client.get(path)
+            await client._get(path)
         expected = "Basic " + base64.b64encode(b"my-token:").decode()
         assert route.calls[0].request.headers["authorization"] == expected
 
@@ -36,7 +36,7 @@ async def test_default_base_url_routes_to_sonarcloud() -> None:
     async with respx.mock() as mock:
         route = mock.get(f"{_DEFAULT_BASE}/{path}").mock(return_value=httpx.Response(200))
         async with SonarClient(token="token") as client:
-            await client.get(path)
+            await client._get(path)
         assert route.called
 
 
@@ -46,7 +46,7 @@ async def test_custom_base_url_is_used() -> None:
     async with respx.mock() as mock:
         route = mock.get(f"{custom}/{path}").mock(return_value=httpx.Response(200))
         async with SonarClient(token="token", base_url=custom) as client:
-            await client.get(path)
+            await client._get(path)
         assert route.called
 
 
