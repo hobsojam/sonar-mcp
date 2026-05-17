@@ -1,5 +1,4 @@
 import json
-import os
 
 import httpx
 import pytest
@@ -208,78 +207,31 @@ async def test_summary_returns_error_on_401(sonar_ctx: Context) -> None:  # type
 # --- integration tests ---
 
 
-def _make_integration_ctx() -> tuple[str, str, str] | None:
-    token = os.environ.get("SONAR_TOKEN", "")
-    org = os.environ.get("SONAR_DEFAULT_ORG", "")
-    project = os.environ.get("SONAR_DEFAULT_PROJECT", "")
-    if not all([token, org, project]):
-        return None
-    return token, org, project
-
-
 @pytest.mark.integration
-async def test_integration_get_issues_returns_list() -> None:
-    from unittest.mock import MagicMock
-
-    from mcp.server.fastmcp.server import RequestContext
-
-    from sonar_mcp.client import SonarClient
-
-    creds = _make_integration_ctx()
-    if not creds:
-        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, SONAR_DEFAULT_PROJECT required")
-    token, org, project = creds
-    async with SonarClient(token=token) as client:
-        rc: RequestContext = RequestContext(  # type: ignore[type-arg]
-            request_id="test", meta=None, session=MagicMock(), lifespan_context=client
-        )
-        ctx = Context(request_context=rc, fastmcp=MagicMock())
-        result = await get_issues(project, organization=org, ctx=ctx)
+async def test_integration_get_issues_returns_list(
+    integration_ctx: tuple[Context, str, str],  # type: ignore[type-arg]
+) -> None:
+    ctx, org, project = integration_ctx
+    result = await get_issues(project, organization=org, ctx=ctx)
     assert isinstance(json.loads(result), list)
 
 
 @pytest.mark.integration
-async def test_integration_get_issues_with_severity_filter() -> None:
-    from unittest.mock import MagicMock
-
-    from mcp.server.fastmcp.server import RequestContext
-
-    from sonar_mcp.client import SonarClient
-
-    creds = _make_integration_ctx()
-    if not creds:
-        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, SONAR_DEFAULT_PROJECT required")
-    token, org, project = creds
-    async with SonarClient(token=token) as client:
-        rc: RequestContext = RequestContext(  # type: ignore[type-arg]
-            request_id="test", meta=None, session=MagicMock(), lifespan_context=client
-        )
-        ctx = Context(request_context=rc, fastmcp=MagicMock())
-        result = await get_issues(
-            project, organization=org, severity=IssueSeverity.BLOCKER, ctx=ctx
-        )
+async def test_integration_get_issues_with_severity_filter(
+    integration_ctx: tuple[Context, str, str],  # type: ignore[type-arg]
+) -> None:
+    ctx, org, project = integration_ctx
+    result = await get_issues(project, organization=org, severity=IssueSeverity.BLOCKER, ctx=ctx)
     issues = json.loads(result)
     assert all(i["severity"] == "BLOCKER" for i in issues)
 
 
 @pytest.mark.integration
-async def test_integration_get_issue_summary_has_valid_counts() -> None:
-    from unittest.mock import MagicMock
-
-    from mcp.server.fastmcp.server import RequestContext
-
-    from sonar_mcp.client import SonarClient
-
-    creds = _make_integration_ctx()
-    if not creds:
-        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, SONAR_DEFAULT_PROJECT required")
-    token, org, project = creds
-    async with SonarClient(token=token) as client:
-        rc: RequestContext = RequestContext(  # type: ignore[type-arg]
-            request_id="test", meta=None, session=MagicMock(), lifespan_context=client
-        )
-        ctx = Context(request_context=rc, fastmcp=MagicMock())
-        result = await get_issue_summary(project, organization=org, ctx=ctx)
+async def test_integration_get_issue_summary_has_valid_counts(
+    integration_ctx: tuple[Context, str, str],  # type: ignore[type-arg]
+) -> None:
+    ctx, org, project = integration_ctx
+    result = await get_issue_summary(project, organization=org, ctx=ctx)
     summary = json.loads(result)
     assert all(v >= 0 for v in summary["by_severity"].values())
     assert all(v >= 0 for v in summary["by_type"].values())
