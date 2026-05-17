@@ -59,8 +59,3 @@ Thumbs.db
 
 # Logs
 *.log
-
-# Local test helpers
-# Local developer scripts not intended for repo
-test_script.py
-
