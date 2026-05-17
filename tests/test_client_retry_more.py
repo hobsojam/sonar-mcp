@@ -101,9 +101,11 @@ async def test_retry_after_http_date_parsed(monkeypatch):
     async with SonarClient(token="t", max_retries=2, backoff_base=0.01) as client:
         res = await client.get_quality_gate_status(QualityGateParams(project_key="p"))
 
-    # Ensure we observed a sleep of roughly 2 seconds (or at least >=1.9)
-    assert any(d >= 1.9 for d in sleep_calls)
-    assert res.status == "OK" or getattr(res, "status", None) == "OK" or res is not None
+    # Ensure we observed a sleep reflective of Retry-After (allow jitter); expect at least ~1.5s
+    assert sleep_calls, "expected sleep_calls to be populated"
+    assert any(d >= 1.5 for d in sleep_calls)
+    # result should indicate OK status
+    assert str(res.status) == "OK"
 
 
 async def test_metrics_hook_called_on_give_up_transport(monkeypatch):
