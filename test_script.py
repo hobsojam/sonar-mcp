@@ -1,8 +1,10 @@
 import asyncio
 import os
 from unittest.mock import MagicMock
+
 from mcp.server.fastmcp import Context
 from mcp.server.fastmcp.server import RequestContext
+
 from sonar_mcp.client import SonarClient
 from sonar_mcp.tools.projects import list_projects
 
