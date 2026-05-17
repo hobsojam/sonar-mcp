@@ -156,6 +156,16 @@ async def test_get_issues_uses_default_project_env_var_when_no_project_key_given
     assert len(json.loads(result)) == 1
 
 
+async def test_get_issues_returns_error_on_malformed_200_response(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(200, json={}))
+        result = await get_issues("my-project", ctx=sonar_ctx)
+    assert "Error" in result
+    assert "Unexpected response shape" in result
+
+
 async def test_get_issues_returns_error_when_no_project_key_and_no_env_var(
     monkeypatch: pytest.MonkeyPatch,
     sonar_ctx: Context,  # type: ignore[type-arg]

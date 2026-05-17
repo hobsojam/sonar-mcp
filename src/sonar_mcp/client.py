@@ -9,7 +9,7 @@ from typing import Any, Self
 
 import httpx
 from cachetools import TTLCache
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from sonar_mcp.exceptions import (
     SonarAuthenticationError,
@@ -95,7 +95,10 @@ class SonarClient:
             query["organization"] = params.organization
         response = await self._get("qualitygates/project_status", params=query)
         self._handle_response(response)
-        result = _QualityGateResponse.model_validate(response.json()).projectStatus
+        try:
+            result = _QualityGateResponse.model_validate(response.json()).projectStatus
+        except ValidationError as exc:
+            raise SonarError("Unexpected response shape from SonarCloud API") from exc
         self._quality_gate_cache[cache_key] = result
         return result
 
@@ -116,7 +119,10 @@ class SonarClient:
             query["p"] = str(page)
             response = await self._get("projects/search", params=query)
             self._handle_response(response)
-            parsed = ProjectsResponse.model_validate(response.json())
+            try:
+                parsed = ProjectsResponse.model_validate(response.json())
+            except ValidationError as exc:
+                raise SonarError("Unexpected response shape from SonarCloud API") from exc
             all_projects.extend(parsed.components)
             if len(all_projects) >= parsed.paging.total:
                 break
@@ -149,7 +155,10 @@ class SonarClient:
             query["p"] = str(page)
             response = await self._get("issues/search", params=query)
             self._handle_response(response)
-            parsed = IssuesResponse.model_validate(response.json())
+            try:
+                parsed = IssuesResponse.model_validate(response.json())
+            except ValidationError as exc:
+                raise SonarError("Unexpected response shape from SonarCloud API") from exc
             all_issues.extend(parsed.issues)
             if len(all_issues) >= parsed.paging.total:
                 break
