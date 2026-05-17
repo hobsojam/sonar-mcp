@@ -1,3 +1,4 @@
+import logging
 from types import TracebackType
 from typing import Self
 
@@ -33,6 +34,8 @@ _DEFAULT_ISSUES_TTL = 60
 _DEFAULT_PROJECTS_TTL = 300
 
 _CACHE_MAX_SIZE = 256
+
+logger = logging.getLogger(__name__)
 
 
 class _QualityGateResponse(BaseModel):
@@ -149,6 +152,8 @@ class SonarClient:
             errors = []
             message = response.text
 
+        logger.error("SonarCloud API error %s: %s", status_code, message)
+
         if status_code == 401:
             raise SonarAuthenticationError("Authentication failed: Invalid API token")
         if status_code == 403:
@@ -163,7 +168,11 @@ class SonarClient:
         raise SonarError(f"API request failed with status {status_code}: {message}")
 
     async def get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
-        return await self._http.get(f"{self._base_url}/{path.lstrip('/')}", params=params)
+        url = f"{self._base_url}/{path.lstrip('/')}"
+        logger.debug("GET %s params=%s", url, params)
+        response = await self._http.get(url, params=params)
+        logger.debug("%s %s", response.status_code, url)
+        return response
 
     async def __aenter__(self) -> Self:
         await self._http.__aenter__()

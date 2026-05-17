@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Any
 
@@ -7,6 +8,8 @@ from mcp.server.fastmcp import Context
 from sonar_mcp.client import SonarClient
 from sonar_mcp.exceptions import SonarError
 from sonar_mcp.models import IssueSeverity, IssuesParams, IssueStatus, IssueType
+
+logger = logging.getLogger(__name__)
 
 
 async def get_issues(
@@ -27,6 +30,14 @@ async def get_issues(
     client: SonarClient = ctx.request_context.lifespan_context
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
+    )
+    logger.info(
+        "get_issues project=%s org=%s severity=%s type=%s status=%s",
+        project_key,
+        org,
+        severity,
+        type,
+        status,
     )
     try:
         issues = await client.get_issues(
@@ -66,6 +77,7 @@ async def get_issue_summary(
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
+    logger.info("get_issue_summary project=%s org=%s", project_key, org)
     try:
         issues = await client.get_issues(
             IssuesParams(

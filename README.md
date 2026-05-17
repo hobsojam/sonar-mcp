@@ -53,7 +53,17 @@ SONAR_TOKEN=your_sonarcloud_token
 # Optional defaults — can be overridden per tool call
 SONAR_DEFAULT_ORG=your_organization_slug
 SONAR_DEFAULT_PROJECT=your_project_key
+
+# Optional log level for the sonar_mcp package (DEBUG, INFO, WARNING, ERROR). Default: WARNING
+# LOG_LEVEL=DEBUG
 ```
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SONAR_TOKEN` | Yes | SonarCloud API token |
+| `SONAR_DEFAULT_ORG` | No | Default organization slug — can be overridden per tool call |
+| `SONAR_DEFAULT_PROJECT` | No | Default project key — can be overridden per tool call |
+| `LOG_LEVEL` | No | Log level for `sonar_mcp` (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Default: `WARNING` |
 
 ### 4. Register with Claude Code
 
@@ -133,6 +143,7 @@ Once registered, Claude can call tools directly:
 | `list_projects` tool | Done |
 | Security scanning with pip-audit and bandit | Done |
 | Smart TTL-based caching for API responses | Done |
+| Configurable logging via `LOG_LEVEL` env var | Done |
 
 ## Project structure
 
