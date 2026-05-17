@@ -21,6 +21,7 @@ Registers a set of MCP tools that Claude can call in any session to query SonarC
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
 - `httpx` — async HTTP client
 - `pydantic` — request/response models and validation
+- `cachetools` — TTL-based in-memory caching for API responses
 - `mypy` (strict) — static type checking
 - `ruff` — linting and formatting
 - `pytest` + `respx` + `pytest-asyncio` — test suite
@@ -131,6 +132,7 @@ Once registered, Claude can call tools directly:
 | Standardized error handling for SonarCloud API | Done |
 | `list_projects` tool | Done |
 | Security scanning with pip-audit and bandit | Done |
+| Smart TTL-based caching for API responses | Done |
 
 ## Project structure
 
