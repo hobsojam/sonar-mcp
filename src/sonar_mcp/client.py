@@ -2,6 +2,7 @@ from types import TracebackType
 from typing import Self
 
 import httpx
+from cachetools import TTLCache
 from pydantic import BaseModel
 
 from sonar_mcp.exceptions import (
@@ -27,28 +28,60 @@ _DEFAULT_BASE_URL = "https://sonarcloud.io/api"
 _DEFAULT_TIMEOUT = 30.0
 _PAGE_SIZE = 500
 
+_DEFAULT_QUALITY_GATE_TTL = 300
+_DEFAULT_ISSUES_TTL = 60
+_DEFAULT_PROJECTS_TTL = 300
+
+_CACHE_MAX_SIZE = 256
+
 
 class _QualityGateResponse(BaseModel):
     projectStatus: QualityGateProjectStatus
 
 
 class SonarClient:
-    def __init__(self, token: str, base_url: str = _DEFAULT_BASE_URL) -> None:
+    def __init__(
+        self,
+        token: str,
+        base_url: str = _DEFAULT_BASE_URL,
+        quality_gate_ttl: float = _DEFAULT_QUALITY_GATE_TTL,
+        issues_ttl: float = _DEFAULT_ISSUES_TTL,
+        projects_ttl: float = _DEFAULT_PROJECTS_TTL,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._http = httpx.AsyncClient(
             auth=(token, ""),
             timeout=_DEFAULT_TIMEOUT,
         )
+        self._quality_gate_cache: TTLCache[str, QualityGateProjectStatus] = TTLCache(
+            maxsize=_CACHE_MAX_SIZE, ttl=quality_gate_ttl
+        )
+        self._issues_cache: TTLCache[str, list[Issue]] = TTLCache(
+            maxsize=_CACHE_MAX_SIZE, ttl=issues_ttl
+        )
+        self._projects_cache: TTLCache[str, list[Project]] = TTLCache(
+            maxsize=_CACHE_MAX_SIZE, ttl=projects_ttl
+        )
 
     async def get_quality_gate_status(self, params: QualityGateParams) -> QualityGateProjectStatus:
+        cache_key = params.model_dump_json()
+        if cache_key in self._quality_gate_cache:
+            return self._quality_gate_cache[cache_key]
+
         query: dict[str, str] = {"projectKey": params.project_key}
         if params.organization is not None:
             query["organization"] = params.organization
         response = await self.get("qualitygates/project_status", params=query)
         self._handle_response(response)
-        return _QualityGateResponse.model_validate(response.json()).projectStatus
+        result = _QualityGateResponse.model_validate(response.json()).projectStatus
+        self._quality_gate_cache[cache_key] = result
+        return result
 
     async def get_projects(self, params: ProjectsParams) -> list[Project]:
+        cache_key = params.model_dump_json()
+        if cache_key in self._projects_cache:
+            return self._projects_cache[cache_key]
+
         query: dict[str, str] = {"ps": str(_PAGE_SIZE)}
         if params.organization is not None:
             query["organization"] = params.organization
@@ -66,9 +99,15 @@ class SonarClient:
             if len(all_projects) >= parsed.paging.total:
                 break
             page += 1
+
+        self._projects_cache[cache_key] = all_projects
         return all_projects
 
     async def get_issues(self, params: IssuesParams) -> list[Issue]:
+        cache_key = params.model_dump_json()
+        if cache_key in self._issues_cache:
+            return self._issues_cache[cache_key]
+
         query: dict[str, str] = {
             "componentKeys": params.project_key,
             "ps": str(_PAGE_SIZE),
@@ -93,6 +132,8 @@ class SonarClient:
             if len(all_issues) >= parsed.paging.total:
                 break
             page += 1
+
+        self._issues_cache[cache_key] = all_issues
         return all_issues
 
     def _handle_response(self, response: httpx.Response) -> None:

@@ -220,3 +220,144 @@ async def test_get_projects_returns_all_projects() -> None:
             projects = await client.get_projects(ProjectsParams(organization="my-org"))
     assert len(projects) == 1
     assert projects[0].key == "my-project"
+
+
+# --- Caching Tests ---
+
+
+async def test_get_quality_gate_status_second_call_hits_cache() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(200, json=_QUALITY_GATE_PAYLOAD)
+        )
+        async with SonarClient(token="token") as client:
+            params = QualityGateParams(project_key="my-project", organization="my-org")
+            await client.get_quality_gate_status(params)
+            await client.get_quality_gate_status(params)
+    assert route.call_count == 1
+
+
+async def test_get_quality_gate_status_different_args_are_not_cached() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(200, json=_QUALITY_GATE_PAYLOAD)
+        )
+        async with SonarClient(token="token") as client:
+            await client.get_quality_gate_status(
+                QualityGateParams(project_key="project-a", organization="my-org")
+            )
+            await client.get_quality_gate_status(
+                QualityGateParams(project_key="project-b", organization="my-org")
+            )
+    assert route.call_count == 2
+
+
+async def test_get_quality_gate_status_cache_expires_after_ttl() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(200, json=_QUALITY_GATE_PAYLOAD)
+        )
+        async with SonarClient(token="token", quality_gate_ttl=0) as client:
+            params = QualityGateParams(project_key="my-project")
+            await client.get_quality_gate_status(params)
+            await client.get_quality_gate_status(params)
+    assert route.call_count == 2
+
+
+async def test_get_issues_second_call_hits_cache() -> None:
+    payload = _page(1, 500, 1, [_ISSUE])
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_ISSUES_PATH}").mock(
+            return_value=httpx.Response(200, json=payload)
+        )
+        async with SonarClient(token="token") as client:
+            params = IssuesParams(project_key="my-project")
+            await client.get_issues(params)
+            await client.get_issues(params)
+    assert route.call_count == 1
+
+
+async def test_get_issues_different_args_are_not_cached() -> None:
+    payload = _page(1, 500, 1, [_ISSUE])
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_ISSUES_PATH}").mock(
+            return_value=httpx.Response(200, json=payload)
+        )
+        async with SonarClient(token="token") as client:
+            await client.get_issues(IssuesParams(project_key="project-a"))
+            await client.get_issues(IssuesParams(project_key="project-b"))
+    assert route.call_count == 2
+
+
+async def test_get_issues_cache_expires_after_ttl() -> None:
+    payload = _page(1, 500, 1, [_ISSUE])
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_ISSUES_PATH}").mock(
+            return_value=httpx.Response(200, json=payload)
+        )
+        async with SonarClient(token="token", issues_ttl=0) as client:
+            params = IssuesParams(project_key="my-project")
+            await client.get_issues(params)
+            await client.get_issues(params)
+    assert route.call_count == 2
+
+
+_PROJECTS_PAYLOAD = {
+    "paging": {"pageIndex": 1, "pageSize": 500, "total": 1},
+    "components": [
+        {
+            "key": "my-project",
+            "name": "My Project",
+            "organization": "my-org",
+            "visibility": "public",
+        }
+    ],
+}
+
+
+async def test_get_projects_second_call_hits_cache() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/projects/search").mock(
+            return_value=httpx.Response(200, json=_PROJECTS_PAYLOAD)
+        )
+        async with SonarClient(token="token") as client:
+            params = ProjectsParams(organization="my-org")
+            await client.get_projects(params)
+            await client.get_projects(params)
+    assert route.call_count == 1
+
+
+async def test_get_projects_different_args_are_not_cached() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/projects/search").mock(
+            return_value=httpx.Response(200, json=_PROJECTS_PAYLOAD)
+        )
+        async with SonarClient(token="token") as client:
+            await client.get_projects(ProjectsParams(organization="org-a"))
+            await client.get_projects(ProjectsParams(organization="org-b"))
+    assert route.call_count == 2
+
+
+async def test_get_projects_cache_expires_after_ttl() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/projects/search").mock(
+            return_value=httpx.Response(200, json=_PROJECTS_PAYLOAD)
+        )
+        async with SonarClient(token="token", projects_ttl=0) as client:
+            params = ProjectsParams(organization="my-org")
+            await client.get_projects(params)
+            await client.get_projects(params)
+    assert route.call_count == 2
+
+
+async def test_separate_client_instances_have_independent_caches() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(200, json=_QUALITY_GATE_PAYLOAD)
+        )
+        params = QualityGateParams(project_key="my-project")
+        async with SonarClient(token="token") as client_a:
+            await client_a.get_quality_gate_status(params)
+        async with SonarClient(token="token") as client_b:
+            await client_b.get_quality_gate_status(params)
+    assert route.call_count == 2
