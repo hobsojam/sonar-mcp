@@ -97,6 +97,29 @@ async def test_returns_error_message_on_404(sonar_ctx: Context) -> None:  # type
     assert "Resource not found" in result
 
 
+async def test_uses_default_project_env_var_when_no_project_key_given(
+    monkeypatch: pytest.MonkeyPatch,
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_ORG", raising=False)
+    monkeypatch.setenv("SONAR_DEFAULT_PROJECT", "env-project")
+    async with respx.mock() as mock:
+        route = mock.get(_PATH).mock(return_value=httpx.Response(200, json=_PASSING))
+        result = await get_quality_gate(ctx=sonar_ctx)
+    assert b"projectKey=env-project" in route.calls[0].request.url.query
+    assert '"status": "OK"' in result
+
+
+async def test_returns_error_when_no_project_key_and_no_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    monkeypatch.delenv("SONAR_DEFAULT_PROJECT", raising=False)
+    result = await get_quality_gate(ctx=sonar_ctx)
+    assert "project_key is required" in result
+    assert "SONAR_DEFAULT_PROJECT" in result
+
+
 @pytest.mark.integration
 async def test_get_quality_gate_returns_valid_json_with_status(
     integration_ctx: tuple[Context, str, str],  # type: ignore[type-arg]

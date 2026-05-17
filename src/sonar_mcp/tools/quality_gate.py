@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_quality_gate(
-    project_key: str,
+    project_key: str | None = None,
     organization: str | None = None,
     *,
     ctx: Context[Any, SonarClient, Any],
@@ -25,19 +25,22 @@ async def get_quality_gate(
     this first to assess overall project health before drilling into individual
     issues.
     """
+    project = project_key if project_key is not None else os.environ.get("SONAR_DEFAULT_PROJECT")
+    if not project:
+        return "Error: project_key is required (or set SONAR_DEFAULT_PROJECT)"
     client: SonarClient = ctx.request_context.lifespan_context
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
-    logger.info("get_quality_gate project=%s org=%s", project_key, org)
+    logger.info("get_quality_gate project=%s org=%s", project, org)
     try:
         status = await client.get_quality_gate_status(
-            QualityGateParams(project_key=project_key, organization=org)
+            QualityGateParams(project_key=project, organization=org)
         )
     except SonarError as e:
         return f"Error retrieving quality gate status: {e}"
 
-    url = f"https://sonarcloud.io/dashboard?id={project_key}"
+    url = f"https://sonarcloud.io/dashboard?id={project}"
     if org:
         url += f"&org={org}"
 
