@@ -1,3 +1,4 @@
+import inspect
 import json
 from pathlib import Path
 
@@ -6,9 +7,17 @@ from sonar_mcp.__main__ import server
 SNAPSHOT_PATH = Path(__file__).parent / "snapshots" / "tool_schemas.json"
 
 
+def _normalise(tool_dict: dict) -> dict:  # type: ignore[type-arg]
+    # FastMCP strips docstring indentation on some platforms but not others;
+    # normalise here so the snapshot is platform-independent.
+    if tool_dict.get("description"):
+        tool_dict["description"] = inspect.cleandoc(tool_dict["description"])
+    return tool_dict
+
+
 def _serialise(tools: list) -> str:  # type: ignore[type-arg]
     return json.dumps(
-        sorted([t.model_dump() for t in tools], key=lambda t: t["name"]),
+        sorted([_normalise(t.model_dump()) for t in tools], key=lambda t: t["name"]),
         sort_keys=True,
         indent=2,
     )

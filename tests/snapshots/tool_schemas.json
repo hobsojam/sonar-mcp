@@ -1,7 +1,7 @@
 [
   {
     "annotations": null,
-    "description": "Use this to get a high-level breakdown of unresolved issues in a SonarCloud project,\ngrouped by severity and type.\n\nCounts issues with status OPEN, CONFIRMED, or REOPENED (all unresolved states).\nReturns counts only \u2014 use get_issues if you need the individual issue details.\n",
+    "description": "Use this to get a high-level breakdown of unresolved issues in a SonarCloud project,\ngrouped by severity and type.\n\nCounts issues with status OPEN, CONFIRMED, or REOPENED (all unresolved states).\nReturns counts only \u2014 use get_issues if you need the individual issue details.",
     "execution": null,
     "icons": null,
     "inputSchema": {
@@ -53,7 +53,7 @@
   },
   {
     "annotations": null,
-    "description": "Use this to retrieve individual issues from a SonarCloud project.\n\nReturns the full list of issues, auto-paginated. Optionally filter by\nseverity, issue_type, or status. Use get_issue_summary instead if you only need\naggregate counts.\n",
+    "description": "Use this to retrieve individual issues from a SonarCloud project.\n\nReturns the full list of issues, auto-paginated. Optionally filter by\nseverity, issue_type, or status. Use get_issue_summary instead if you only need\naggregate counts.",
     "execution": null,
     "icons": null,
     "inputSchema": {
@@ -171,7 +171,7 @@
   },
   {
     "annotations": null,
-    "description": "Use this to check whether a project has passed its quality gate.\n\nReturns the overall status (OK, WARN, or ERROR) and the list of conditions\nthat failed, including the metric name, actual value, and threshold. Call\nthis first to assess overall project health before drilling into individual\nissues.\n",
+    "description": "Use this to check whether a project has passed its quality gate.\n\nReturns the overall status (OK, WARN, or ERROR) and the list of conditions\nthat failed, including the metric name, actual value, and threshold. Call\nthis first to assess overall project health before drilling into individual\nissues.",
     "execution": null,
     "icons": null,
     "inputSchema": {
@@ -223,7 +223,7 @@
   },
   {
     "annotations": null,
-    "description": "Use this to list projects in a SonarCloud organization.\n\nReturns a list of projects with their keys, names, and visibility.\nThis is useful for discovering which projects are available for analysis.\n",
+    "description": "Use this to list projects in a SonarCloud organization.\n\nReturns a list of projects with their keys, names, and visibility.\nThis is useful for discovering which projects are available for analysis.",
     "execution": null,
     "icons": null,
     "inputSchema": {
