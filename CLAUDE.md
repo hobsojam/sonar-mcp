@@ -54,12 +54,7 @@ sonar-mcp/
 │       ├── __main__.py       # MCP server entry point
 │       ├── client.py         # SonarCloud HTTP client
 │       ├── exceptions.py     # Typed exception hierarchy
-│       ├── models/
-│       │   ├── __init__.py
-│       │   ├── common.py     # Shared models (Paging)
-│       │   ├── issues.py
-│       │   ├── projects.py
-│       │   └── quality_gate.py
+│       ├── models.py         # Pydantic request/response models
 │       └── tools/
 │           ├── __init__.py
 │           ├── issues.py
