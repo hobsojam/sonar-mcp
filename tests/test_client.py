@@ -1,4 +1,7 @@
 import base64
+import email.utils
+import time
+import unittest.mock
 
 import httpx
 import pytest
@@ -406,3 +409,164 @@ async def test_separate_client_instances_have_independent_caches() -> None:
         async with SonarClient(token="token") as client_b:
             await client_b.get_quality_gate_status(params)
     assert route.call_count == 2
+
+
+# --- Retry and Backoff Tests ---
+
+_RETRY_PATH = "qualitygates/project_status"
+
+
+async def test_transport_error_retries_and_succeeds_on_second_attempt() -> None:
+    call_count = 0
+
+    def side_effect(_req: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise httpx.ConnectError("connection reset")
+        return httpx.Response(200, json=_QUALITY_GATE_PAYLOAD)
+
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock):
+        async with respx.mock() as mock:
+            route = mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(side_effect=side_effect)
+            async with SonarClient(token="token", backoff_base=0) as client:
+                response = await client._get(_RETRY_PATH)
+    assert route.call_count == 2
+    assert response.status_code == 200
+
+
+async def test_transport_error_exceeding_max_retries_re_raises() -> None:
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock):
+        async with respx.mock() as mock:
+            mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(
+                side_effect=httpx.ConnectError("connection reset")
+            )
+            async with SonarClient(token="token", max_retries=1, backoff_base=0) as client:
+                with pytest.raises(httpx.ConnectError):
+                    await client._get(_RETRY_PATH)
+
+
+async def test_429_with_integer_retry_after_retries_and_succeeds() -> None:
+    responses = iter(
+        [
+            httpx.Response(429, headers={"Retry-After": "0"}),
+            httpx.Response(200, json=_QUALITY_GATE_PAYLOAD),
+        ]
+    )
+
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock) as mock_sleep:
+        async with respx.mock() as mock:
+            route = mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(
+                side_effect=lambda _req: next(responses)
+            )
+            async with SonarClient(token="token", backoff_base=0) as client:
+                response = await client._get(_RETRY_PATH)
+    assert route.call_count == 2
+    assert response.status_code == 200
+    mock_sleep.assert_awaited_once()
+    assert mock_sleep.call_args[0][0] == pytest.approx(0.0, abs=1e-9)
+
+
+async def test_429_with_http_date_retry_after_sleeps_for_future_delta() -> None:
+    # usegmt=True produces an offset-aware datetime that parsedate_to_datetime can compare to UTC
+    future_date = email.utils.formatdate(time.time() + 2, usegmt=True)
+    responses = iter(
+        [
+            httpx.Response(429, headers={"Retry-After": future_date}),
+            httpx.Response(200, json=_QUALITY_GATE_PAYLOAD),
+        ]
+    )
+
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock) as mock_sleep:
+        async with respx.mock() as mock:
+            route = mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(
+                side_effect=lambda _req: next(responses)
+            )
+            async with SonarClient(token="token", backoff_base=0) as client:
+                response = await client._get(_RETRY_PATH)
+    assert route.call_count == 2
+    assert response.status_code == 200
+    mock_sleep.assert_awaited_once()
+    assert mock_sleep.call_args[0][0] > 0
+
+
+async def test_429_with_unparseable_retry_after_falls_back_to_backoff_delay() -> None:
+    responses = iter(
+        [
+            httpx.Response(429, headers={"Retry-After": "not-a-date"}),
+            httpx.Response(200, json=_QUALITY_GATE_PAYLOAD),
+        ]
+    )
+
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock) as mock_sleep:
+        async with respx.mock() as mock:
+            route = mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(
+                side_effect=lambda _req: next(responses)
+            )
+            async with SonarClient(token="token", backoff_base=0) as client:
+                response = await client._get(_RETRY_PATH)
+    assert route.call_count == 2
+    assert response.status_code == 200
+    mock_sleep.assert_awaited_once()
+
+
+async def test_5xx_retries_and_succeeds_on_second_attempt() -> None:
+    responses = iter(
+        [
+            httpx.Response(500),
+            httpx.Response(200, json=_QUALITY_GATE_PAYLOAD),
+        ]
+    )
+
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock):
+        async with respx.mock() as mock:
+            route = mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(
+                side_effect=lambda _req: next(responses)
+            )
+            async with SonarClient(token="token", backoff_base=0) as client:
+                response = await client._get(_RETRY_PATH)
+    assert route.call_count == 2
+    assert response.status_code == 200
+
+
+async def test_metrics_hook_receives_retry_attempt_on_transport_error() -> None:
+    call_count = 0
+
+    def side_effect(_req: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise httpx.ConnectError("connection reset")
+        return httpx.Response(200, json=_QUALITY_GATE_PAYLOAD)
+
+    hook = unittest.mock.MagicMock()
+
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock):
+        async with respx.mock() as mock:
+            mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(side_effect=side_effect)
+            async with SonarClient(token="token", backoff_base=0, metrics_hook=hook) as client:
+                await client._get(_RETRY_PATH)
+
+    hook.assert_called()
+    event_names = [call[0][0] for call in hook.call_args_list]
+    assert "retry_attempt" in event_names
+    retry_call = next(c for c in hook.call_args_list if c[0][0] == "retry_attempt")
+    assert "url" in retry_call[0][1]
+
+
+async def test_metrics_hook_receives_retry_give_up_after_max_retries_exhausted() -> None:
+    hook = unittest.mock.MagicMock()
+
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock):
+        async with respx.mock() as mock:
+            mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(
+                side_effect=httpx.ConnectError("connection reset")
+            )
+            async with SonarClient(
+                token="token", max_retries=1, backoff_base=0, metrics_hook=hook
+            ) as client:
+                with pytest.raises(httpx.ConnectError):
+                    await client._get(_RETRY_PATH)
+
+    event_names = [call[0][0] for call in hook.call_args_list]
+    assert "retry_give_up" in event_names
