@@ -30,10 +30,38 @@ Registers a set of MCP tools that Claude can call in any session to query SonarC
 
 ### 1. Prerequisites
 
-- Python 3.12+
+- **Python 3.12+**
+- **[uv](https://docs.astral.sh/uv/)** — fast Python package and project manager (required; the MCP server registration uses `uv run`)
 - A SonarCloud account and API token
 
+**Install uv:**
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Or via pip (any platform)
+pip install uv
+
+# Or via Homebrew (macOS)
+brew install uv
+```
+
+See the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/) for other options.
+
 ### 2. Install dependencies
+
+```bash
+uv sync --all-extras
+pre-commit install
+```
+
+This creates a virtual environment in `.venv` and installs all dependencies (including dev tools) automatically.
+
+Alternatively, with plain pip:
 
 ```bash
 python -m venv .venv
