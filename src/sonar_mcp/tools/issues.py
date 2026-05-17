@@ -45,7 +45,7 @@ async def get_issues(
                 project_key=project_key,
                 organization=org,
                 severity=severity,
-                type=issue_type,
+                issue_type=issue_type,
                 statuses=[status] if status is not None else None,
             )
         )

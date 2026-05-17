@@ -46,5 +46,5 @@ class IssuesParams(BaseModel):
     project_key: str
     organization: str | None = None
     severity: IssueSeverity | None = None
-    type: IssueType | None = None
+    issue_type: IssueType | None = None
     statuses: list[IssueStatus] | None = None

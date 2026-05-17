@@ -65,7 +65,7 @@ async def test_get_issues_severity_filter_is_passed_to_api(
     assert b"severities=MAJOR" in route.calls[0].request.url.query
 
 
-async def test_get_issues_type_filter_is_passed_to_api(
+async def test_get_issues_issue_type_filter_is_passed_to_api(
     sonar_ctx: Context,  # type: ignore[type-arg]
 ) -> None:
     async with respx.mock() as mock:

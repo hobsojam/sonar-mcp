@@ -138,8 +138,8 @@ class SonarClient:
             query["organization"] = params.organization
         if params.severity is not None:
             query["severities"] = params.severity.value
-        if params.type is not None:
-            query["types"] = params.type.value
+        if params.issue_type is not None:
+            query["types"] = params.issue_type.value
         if params.statuses is not None:
             query["statuses"] = ",".join(s.value for s in params.statuses)
 
