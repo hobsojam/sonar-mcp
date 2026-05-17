@@ -21,6 +21,8 @@ A Python MCP server wrapping the SonarCloud REST API. Exposes named tools (`get_
 
 **Agree on scope before each piece of work.** Confirm what we're building in a given session before touching any file.
 
+**Subagents must follow project conventions.** When spawning a subagent for this repo, always instruct it to read `CLAUDE.md` and `CLAUDE_SECURITY.md` before writing any code. Never write prompts so prescriptive that the agent follows the script without consulting project conventions — give the agent a goal and point it at the standards.
+
 ## Code standards
 
 - **mypy strict mode** — all code must pass `mypy --strict`. No `Any` unless genuinely unavoidable and documented.
