@@ -22,9 +22,6 @@ jobs:
           if [ ! -s changed.txt ]; then echo "No changed files"; exit 0; fi
 
       - name: Scan changed files for noqa
-        env:
-          # Paths to ignore; include this workflow so it can contain its own noqa
-          EXCLUDE_GLOBS: "tests/* docs/* .venv/** .github/workflows/no-noqa.yml"  # comma-separated globs to ignore
         run: |
           set -euo pipefail
           pha=0
@@ -32,15 +29,29 @@ jobs:
           matches_noqa() {
             grep -EnH "#\s*(ruff:)?\s*noqa\b" "$1" || return 1
           }
+
+          # list of globs to ignore (workflow file is allowed to contain its own noqa)
+          EXCLUDE_GLOBS=(
+            "tests/*"
+            "docs/*"
+            ".venv/**"
+            ".github/workflows/no-noqa.yml"
+          )
+
+          # enable globstar for ** patterns
+          shopt -s globstar nullglob
+
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             # skip removed files
             [ ! -f "$f" ] && continue
             # quick exclude by glob list
             skip=0
-            IFS=',' read -ra G <<< "$EXCLUDE_GLOBS"
-            for g in "${G[@]}"; do
-              if [[ "$f" == $g ]]; then skip=1; break; fi
+            for g in "${EXCLUDE_GLOBS[@]}"; do
+              if [[ "$f" == $g ]]; then
+                skip=1
+                break
+              fi
             done
             [ $skip -eq 1 ] && continue
             if matches_noqa "$f"; then
