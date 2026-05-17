@@ -72,3 +72,43 @@ async def test_list_projects_returns_error_on_404(
         result = await list_projects(organization="nonexistent-org", ctx=sonar_ctx)
     assert "Error listing projects" in result
     assert "Resource not found" in result
+
+
+_PROJECT_A = {
+    "key": "project-a",
+    "name": "Project A",
+    "organization": "my-org",
+    "visibility": "public",
+}
+
+_PROJECT_B = {
+    "key": "project-b",
+    "name": "Project B",
+    "organization": "my-org",
+    "visibility": "private",
+}
+
+
+async def test_list_projects_returns_all_projects_across_multiple_pages(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+) -> None:
+    page1 = {
+        "paging": {"pageIndex": 1, "pageSize": 500, "total": 2},
+        "components": [_PROJECT_A],
+    }
+    page2 = {
+        "paging": {"pageIndex": 2, "pageSize": 500, "total": 2},
+        "components": [_PROJECT_B],
+    }
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(
+            side_effect=[
+                httpx.Response(200, json=page1),
+                httpx.Response(200, json=page2),
+            ]
+        )
+        result = await list_projects(organization="my-org", ctx=sonar_ctx)
+    projects = json.loads(result)
+    assert len(projects) == 2
+    keys = {p["key"] for p in projects}
+    assert keys == {"project-a", "project-b"}
