@@ -41,6 +41,7 @@ _DEFAULT_PROJECTS_TTL = 300
 _CACHE_MAX_SIZE = 256
 
 logger = logging.getLogger(__name__)
+_SYS_RANDOM = random.SystemRandom()
 
 
 class _QualityGateResponse(BaseModel):
@@ -208,7 +209,7 @@ class SonarClient:
                         self._backoff_base * (2 ** (attempt - 1)),
                         self._backoff_max,
                     )
-                    delay *= random.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)  # noqa: S311
+                    delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
                     logger.warning(
                         "Retrying request %s (attempt %d/%d) after transport error; sleeping %.2fs",
                         url,
@@ -265,7 +266,7 @@ class SonarClient:
                         self._backoff_base * (2 ** (attempt - 1)),
                         self._backoff_max,
                     )
-                    delay *= random.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)  # noqa: S311
+                    delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
                 logger.warning(
                     "Rate limited on %s (attempt %d/%d); sleeping %.2fs",
                     url,
@@ -293,7 +294,7 @@ class SonarClient:
             if 500 <= status < 600 and attempt < self._max_retries:
                 attempt += 1
                 delay = min(self._backoff_base * (2 ** (attempt - 1)), self._backoff_max)
-                delay *= random.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)  # noqa: S311
+                delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
                 logger.warning(
                     "Server error %d on %s (attempt %d/%d); sleeping %.2fs",
                     status,
