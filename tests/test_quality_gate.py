@@ -94,28 +94,11 @@ async def test_returns_error_message_on_404(sonar_ctx: Context) -> None:  # type
 
 
 @pytest.mark.integration
-async def test_get_quality_gate_returns_valid_json_with_status() -> None:
-    import os
-    from unittest.mock import MagicMock
-
-    from mcp.server.fastmcp.server import RequestContext
-
-    from sonar_mcp.client import SonarClient
-
-    token = os.environ.get("SONAR_TOKEN")
-    organization = os.environ.get("SONAR_DEFAULT_ORG")
-    project_key = os.environ.get("SONAR_DEFAULT_PROJECT")
-
-    if not token or not organization or not project_key:
-        pytest.skip("SONAR_TOKEN, SONAR_DEFAULT_ORG, and SONAR_DEFAULT_PROJECT must be set")
-
-    async with SonarClient(token=token) as client:
-        rc: RequestContext = RequestContext(  # type: ignore[type-arg]
-            request_id="test", meta=None, session=MagicMock(), lifespan_context=client
-        )
-        ctx = Context(request_context=rc, fastmcp=MagicMock())
-        result = await get_quality_gate(project_key, organization, ctx=ctx)
-
+async def test_get_quality_gate_returns_valid_json_with_status(
+    integration_ctx: tuple[Context, str, str],  # type: ignore[type-arg]
+) -> None:
+    ctx, org, project = integration_ctx
+    result = await get_quality_gate(project, org, ctx=ctx)
     assert result, "result must be a non-empty string"
     parsed = json.loads(result)
     assert "status" in parsed
