@@ -1,10 +1,13 @@
 import json
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
 import respx
 from mcp.server.fastmcp import Context
+from mcp.server.fastmcp.server import RequestContext
 
+from sonar_mcp.client import SonarClient
 from sonar_mcp.tools.quality_gate import get_quality_gate
 
 _PATH = "https://sonarcloud.io/api/qualitygates/project_status"
@@ -89,12 +92,33 @@ async def test_returns_error_message_on_401(sonar_ctx: Context) -> None:  # type
     assert "Authentication failed" in result
 
 
+async def test_returns_error_message_on_403(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(403, text="Forbidden"))
+        result = await get_quality_gate("my-project", ctx=sonar_ctx)
+    assert "Error retrieving quality gate status" in result
+    assert "Permission denied" in result
+
+
 async def test_returns_error_message_on_404(sonar_ctx: Context) -> None:  # type: ignore[type-arg]
     async with respx.mock() as mock:
         mock.get(_PATH).mock(return_value=httpx.Response(404, text="Project not found"))
         result = await get_quality_gate("nonexistent-project", ctx=sonar_ctx)
     assert "Error retrieving quality gate status" in result
     assert "Resource not found" in result
+
+
+async def test_returns_error_message_on_429() -> None:
+    async with SonarClient(token="test-token", max_retries=0) as client:
+        rc: RequestContext[SonarClient, None] = RequestContext(
+            request_id="test", meta=None, session=MagicMock(), lifespan_context=client
+        )
+        ctx: Context[None, SonarClient, None] = Context(request_context=rc, fastmcp=MagicMock())
+        async with respx.mock() as mock:
+            mock.get(_PATH).mock(return_value=httpx.Response(429))
+            result = await get_quality_gate("my-project", ctx=ctx)
+    assert "Error retrieving quality gate status" in result
+    assert "Rate limit" in result
 
 
 async def test_uses_default_project_env_var_when_no_project_key_given(
