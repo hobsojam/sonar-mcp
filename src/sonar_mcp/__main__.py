@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from collections.abc import AsyncGenerator
@@ -10,6 +11,19 @@ from sonar_mcp.client import SonarClient
 from sonar_mcp.tools.issues import get_issue_summary, get_issues
 from sonar_mcp.tools.projects import list_projects
 from sonar_mcp.tools.quality_gate import get_quality_gate
+
+
+def _configure_logging() -> None:
+    level_name = os.environ.get("LOG_LEVEL", "WARNING").upper()
+    level = getattr(logging, level_name, None)
+    if not isinstance(level, int):
+        logging.warning("Invalid LOG_LEVEL %r — defaulting to WARNING", level_name)
+        level = logging.WARNING
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+    logging.getLogger("sonar_mcp").setLevel(level)
 
 
 @asynccontextmanager
@@ -29,6 +43,7 @@ server.tool()(list_projects)
 
 
 def main() -> None:
+    _configure_logging()
     server.run()
 
 

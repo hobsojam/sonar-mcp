@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any
 
@@ -6,6 +7,8 @@ from mcp.server.fastmcp import Context
 from sonar_mcp.client import SonarClient
 from sonar_mcp.exceptions import SonarError
 from sonar_mcp.models import QualityGateParams
+
+logger = logging.getLogger(__name__)
 
 
 async def get_quality_gate(
@@ -25,6 +28,7 @@ async def get_quality_gate(
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
+    logger.info("get_quality_gate project=%s org=%s", project_key, org)
     try:
         status = await client.get_quality_gate_status(
             QualityGateParams(project_key=project_key, organization=org)

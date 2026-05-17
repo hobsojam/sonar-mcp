@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Any
 
@@ -7,6 +8,8 @@ from mcp.server.fastmcp import Context
 from sonar_mcp.client import SonarClient
 from sonar_mcp.exceptions import SonarError
 from sonar_mcp.models import ProjectsParams
+
+logger = logging.getLogger(__name__)
 
 
 async def list_projects(
@@ -24,6 +27,7 @@ async def list_projects(
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
+    logger.info("list_projects org=%s query=%s", org, query)
     try:
         projects = await client.get_projects(ProjectsParams(organization=org, query=query))
     except SonarError as e:
