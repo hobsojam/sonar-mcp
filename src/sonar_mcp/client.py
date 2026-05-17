@@ -1,6 +1,11 @@
+import asyncio
 import logging
+import random
+from collections.abc import Callable
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from types import TracebackType
-from typing import Self
+from typing import Any, Self
 
 import httpx
 from cachetools import TTLCache
@@ -36,6 +41,7 @@ _DEFAULT_PROJECTS_TTL = 300
 _CACHE_MAX_SIZE = 256
 
 logger = logging.getLogger(__name__)
+_SYS_RANDOM = random.SystemRandom()
 
 
 class _QualityGateResponse(BaseModel):
@@ -50,6 +56,12 @@ class SonarClient:
         quality_gate_ttl: float = _DEFAULT_QUALITY_GATE_TTL,
         issues_ttl: float = _DEFAULT_ISSUES_TTL,
         projects_ttl: float = _DEFAULT_PROJECTS_TTL,
+        *,
+        max_retries: int = 3,
+        backoff_base: float = 0.5,
+        backoff_max: float = 10.0,
+        jitter_frac: float = 0.2,
+        metrics_hook: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._http = httpx.AsyncClient(
@@ -65,6 +77,13 @@ class SonarClient:
         self._projects_cache: TTLCache[str, list[Project]] = TTLCache(
             maxsize=_CACHE_MAX_SIZE, ttl=projects_ttl
         )
+
+        # Retry configuration
+        self._max_retries = max_retries
+        self._backoff_base = backoff_base
+        self._backoff_max = backoff_max
+        self._jitter_frac = jitter_frac
+        self._metrics_hook = metrics_hook
 
     async def get_quality_gate_status(self, params: QualityGateParams) -> QualityGateProjectStatus:
         cache_key = params.model_dump_json()
@@ -168,11 +187,140 @@ class SonarClient:
         raise SonarError(f"API request failed with status {status_code}: {message}")
 
     async def _get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
+        """GET with a small retry/backoff strategy.
+
+        Retries on network errors, 5xx responses, and 429 (rate limit). Respects
+        Retry-After when present. Metrics hook (if provided) is invoked for retry
+        attempts and give-up events.
+        """
         url = f"{self._base_url}/{path.lstrip('/')}"
-        logger.debug("GET %s params=%s", url, params)
-        response = await self._http.get(url, params=params)
-        logger.debug("%s %s", response.status_code, url)
-        return response
+        attempt = 0
+        while True:
+            try:
+                logger.debug("GET %s params=%s", url, params)
+                response = await self._http.get(url, params=params)
+                logger.debug("%s %s", response.status_code, url)
+            except (httpx.RequestError, httpx.TransportError):
+                # Retryable transport error
+                attempt += 1
+                should_retry = attempt <= self._max_retries
+                if should_retry:
+                    delay = min(
+                        self._backoff_base * (2 ** (attempt - 1)),
+                        self._backoff_max,
+                    )
+                    delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
+                    logger.warning(
+                        "Retrying request %s (attempt %d/%d) after transport error; sleeping %.2fs",
+                        url,
+                        attempt,
+                        self._max_retries,
+                        delay,
+                    )
+                    if self._metrics_hook:
+                        try:
+                            self._metrics_hook(
+                                "retry_attempt",
+                                {
+                                    "url": url,
+                                    "attempt": attempt,
+                                    "reason": "transport_error",
+                                    "delay": delay,
+                                },
+                            )
+                        except Exception as e:
+                            logger.debug("metrics hook error: %s", e)
+                    await asyncio.sleep(delay)
+                    continue
+                # give up
+                logger.exception("Giving up on request %s after transport errors", url)
+                if self._metrics_hook:
+                    try:
+                        self._metrics_hook(
+                            "retry_give_up",
+                            {"url": url, "attempts": attempt, "reason": "transport_error"},
+                        )
+                    except Exception as e:
+                        logger.debug("metrics hook error: %s", e)
+                raise
+
+            # Handle HTTP responses
+            status = response.status_code
+            # Rate limited
+            if status == 429 and attempt < self._max_retries:
+                attempt += 1
+                retry_after = response.headers.get("Retry-After")
+                delay = None
+                if retry_after:
+                    try:
+                        delay = int(retry_after)
+                    except ValueError:
+                        try:
+                            dt = parsedate_to_datetime(retry_after)
+                            now = datetime.now(UTC)
+                            delay = max(0, (dt - now).total_seconds())
+                        except Exception:
+                            delay = None
+                if delay is None:
+                    delay = min(
+                        self._backoff_base * (2 ** (attempt - 1)),
+                        self._backoff_max,
+                    )
+                    delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
+                logger.warning(
+                    "Rate limited on %s (attempt %d/%d); sleeping %.2fs",
+                    url,
+                    attempt,
+                    self._max_retries,
+                    delay,
+                )
+                if self._metrics_hook:
+                    try:
+                        self._metrics_hook(
+                            "retry_attempt",
+                            {
+                                "url": url,
+                                "attempt": attempt,
+                                "reason": "rate_limited",
+                                "delay": delay,
+                            },
+                        )
+                    except Exception as e:
+                        logger.debug("metrics hook error: %s", e)
+                await asyncio.sleep(delay)
+                continue
+
+            # Server errors (5xx)
+            if 500 <= status < 600 and attempt < self._max_retries:
+                attempt += 1
+                delay = min(self._backoff_base * (2 ** (attempt - 1)), self._backoff_max)
+                delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
+                logger.warning(
+                    "Server error %d on %s (attempt %d/%d); sleeping %.2fs",
+                    status,
+                    url,
+                    attempt,
+                    self._max_retries,
+                    delay,
+                )
+                if self._metrics_hook:
+                    try:
+                        self._metrics_hook(
+                            "retry_attempt",
+                            {
+                                "url": url,
+                                "attempt": attempt,
+                                "reason": "server_error",
+                                "delay": delay,
+                            },
+                        )
+                    except Exception as e:
+                        logger.debug("metrics hook error: %s", e)
+                await asyncio.sleep(delay)
+                continue
+
+            # Otherwise return the response (success or non-retryable client error)
+            return response
 
     async def __aenter__(self) -> Self:
         await self._http.__aenter__()
