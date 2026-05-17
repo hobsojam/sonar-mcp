@@ -9,7 +9,7 @@ from typing import Any, Self
 
 import httpx
 from cachetools import TTLCache
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from sonar_mcp.exceptions import (
     SonarAuthenticationError,
@@ -43,10 +43,6 @@ _UNEXPECTED_RESPONSE_SHAPE = "Unexpected response shape from SonarCloud API"
 
 logger = logging.getLogger(__name__)
 _SYS_RANDOM = random.SystemRandom()
-
-
-class _QualityGateResponse(BaseModel):
-    projectStatus: QualityGateProjectStatus
 
 
 class SonarClient:
@@ -97,8 +93,8 @@ class SonarClient:
         response = await self._get("qualitygates/project_status", params=query)
         self._handle_response(response)
         try:
-            result = _QualityGateResponse.model_validate(response.json()).projectStatus
-        except ValidationError as exc:
+            result = QualityGateProjectStatus.model_validate(response.json()["projectStatus"])
+        except (ValidationError, KeyError) as exc:
             raise SonarError(_UNEXPECTED_RESPONSE_SHAPE) from exc
         self._quality_gate_cache[cache_key] = result
         return result
@@ -190,7 +186,7 @@ class SonarClient:
         if status_code == 404:
             raise SonarResourceNotFoundError(f"Resource not found: {message}")
         if status_code == 400:
-            raise SonarValidationError(f"Validation failed: {message}", errors=errors)
+            raise SonarValidationError(f"Validation failed: {message}")
         if status_code == 429:
             raise SonarRateLimitError("Rate limit exceeded")
 

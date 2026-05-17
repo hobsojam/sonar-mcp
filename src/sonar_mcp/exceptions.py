@@ -25,9 +25,7 @@ class SonarResourceNotFoundError(SonarError):
 class SonarValidationError(SonarError):
     """Raised when the API returns a 400 Bad Request with validation errors."""
 
-    def __init__(self, message: str, errors: list[dict[str, str]] | None = None) -> None:
-        super().__init__(message)
-        self.errors = errors or []
+    pass
 
 
 class SonarRateLimitError(SonarError):
