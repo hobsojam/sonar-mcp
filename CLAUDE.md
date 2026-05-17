@@ -117,5 +117,6 @@ Key endpoints:
 ## Documentation
 
 - Work is tracked in GitHub Issues — do not create local task files or checklists.
+- **Any suggested improvement, inconsistency, or problem noticed during work must be filed as a GitHub issue immediately**, even if it is out of scope for the current task. Use `gh issue create --repo hobsojam/sonar-mcp`. Do not mention it only in a PR description or conversation and move on.
 - **Always update `README.md` when a feature is completed** — mark it as done in the roadmap and update the project structure if new files were added.
 - Documentation updates must be committed on the same branch as the feature work, before the PR is created.
