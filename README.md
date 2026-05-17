@@ -8,6 +8,10 @@ A Model Context Protocol (MCP) server that wraps the SonarCloud REST API, exposi
 
 Registers a set of MCP tools that Claude can call in any session to query SonarCloud without manual HTTP calls or token management. Pass an organization and project key per call, and the server handles auth, request shaping, and response parsing.
 
+## Why should I use it?
+
+You probably shouldn't. There is an [official sonarqube MCP from SonarSource](https://docs.sonarsource.com/agent-centric-development-cycle/developer-tools/mcp-server) which is better supported and has more functionality. I use this implementation because its lightweight and simple and I wrote it (together with Claude) myself as a learning excersize. If for some reason you do not want to use the MCP from SonarSource then this is a simple and easy to setup alternative.
+
 ## Tools
 
 | Tool | Description |
