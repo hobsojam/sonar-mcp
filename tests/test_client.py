@@ -570,3 +570,25 @@ async def test_metrics_hook_receives_retry_give_up_after_max_retries_exhausted()
 
     event_names = [call[0][0] for call in hook.call_args_list]
     assert "retry_give_up" in event_names
+
+
+async def test_5xx_exhausts_retries_and_raises() -> None:
+    with unittest.mock.patch("asyncio.sleep", new_callable=unittest.mock.AsyncMock):
+        async with respx.mock() as mock:
+            mock.get(f"{_DEFAULT_BASE}/{_RETRY_PATH}").mock(return_value=httpx.Response(500))
+            async with SonarClient(token="token", max_retries=2, backoff_base=0) as client:
+                with pytest.raises(SonarError):
+                    await client.get_quality_gate_status(
+                        QualityGateParams(project_key="my-project")
+                    )
+
+
+async def test_400_does_not_trigger_retry() -> None:
+    async with respx.mock() as mock:
+        route = mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(400, json={"errors": [{"msg": "bad input"}]})
+        )
+        async with SonarClient(token="token", max_retries=3) as client:
+            with pytest.raises(SonarValidationError):
+                await client.get_quality_gate_status(QualityGateParams(project_key="p"))
+    assert route.call_count == 1

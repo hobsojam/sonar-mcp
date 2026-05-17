@@ -19,6 +19,8 @@ def _configure_logging() -> None:
     if not isinstance(level, int):
         logging.warning("Invalid LOG_LEVEL %r — defaulting to WARNING", level_name)
         level = logging.WARNING
+    # Root logger stays at WARNING so third-party library logs stay quiet;
+    # only the sonar_mcp logger respects LOG_LEVEL.
     logging.basicConfig(
         level=logging.WARNING,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",

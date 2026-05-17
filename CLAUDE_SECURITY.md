@@ -23,7 +23,7 @@ Security expectations for all agents and contributors working on this project.
 
 - **Do not add new dependencies without checking with the user first** — this includes both runtime and dev dependencies
 - When proposing a new dependency, state what it does, why it is needed, and whether a lighter alternative exists
-- Pin versions in `pyproject.toml` — do not use unbounded version ranges for direct dependencies
+- Use minimum-version bounds (`>=`) in `pyproject.toml` for direct dependencies — do not use unbounded ranges or wildcard specifiers
 
 ## File system
 
