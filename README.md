@@ -193,6 +193,7 @@ Observability: retry attempts are logged at WARNING level and give-up events at 
 | Smart TTL-based caching for API responses | Done |
 | Configurable logging via `LOG_LEVEL` env var | Done |
 | `SONAR_DEFAULT_PROJECT` fallback in tools | Done |
+| Snapshot test for MCP tool schemas | Done |
 | In-process MCP protocol component tests | Done |
 
 ## Project structure
@@ -212,13 +213,16 @@ sonar-mcp/
 │           ├── projects.py
 │           └── quality_gate.py
 ├── tests/
+│   ├── snapshots/
+│   │   └── tool_schemas.json # Committed snapshot of MCP tool schemas
 │   ├── conftest.py
 │   ├── test_client.py
 │   ├── test_issues.py
 │   ├── test_main.py
 │   ├── test_mcp_protocol.py
 │   ├── test_projects.py
-│   └── test_quality_gate.py
+│   ├── test_quality_gate.py
+│   └── test_tool_schemas.py
 ├── pyproject.toml
 ├── .env.example
 ├── .gitignore

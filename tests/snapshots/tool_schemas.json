@@ -1,0 +1,276 @@
+[
+  {
+    "annotations": null,
+    "description": "Use this to get a high-level breakdown of unresolved issues in a SonarCloud project,\ngrouped by severity and type.\n\nCounts issues with status OPEN, CONFIRMED, or REOPENED (all unresolved states).\nReturns counts only \u2014 use get_issues if you need the individual issue details.",
+    "execution": null,
+    "icons": null,
+    "inputSchema": {
+      "properties": {
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization"
+        },
+        "project_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Key"
+        }
+      },
+      "title": "get_issue_summaryArguments",
+      "type": "object"
+    },
+    "meta": null,
+    "name": "get_issue_summary",
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_issue_summaryOutput",
+      "type": "object"
+    },
+    "title": null
+  },
+  {
+    "annotations": null,
+    "description": "Use this to retrieve individual issues from a SonarCloud project.\n\nReturns the full list of issues, auto-paginated. Optionally filter by\nseverity, issue_type, or status. Use get_issue_summary instead if you only need\naggregate counts.",
+    "execution": null,
+    "icons": null,
+    "inputSchema": {
+      "$defs": {
+        "IssueSeverity": {
+          "enum": [
+            "BLOCKER",
+            "CRITICAL",
+            "MAJOR",
+            "MINOR",
+            "INFO"
+          ],
+          "title": "IssueSeverity",
+          "type": "string"
+        },
+        "IssueStatus": {
+          "enum": [
+            "OPEN",
+            "CONFIRMED",
+            "REOPENED",
+            "RESOLVED",
+            "CLOSED"
+          ],
+          "title": "IssueStatus",
+          "type": "string"
+        },
+        "IssueType": {
+          "enum": [
+            "BUG",
+            "VULNERABILITY",
+            "CODE_SMELL"
+          ],
+          "title": "IssueType",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "issue_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IssueType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization"
+        },
+        "project_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Key"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IssueSeverity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IssueStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "get_issuesArguments",
+      "type": "object"
+    },
+    "meta": null,
+    "name": "get_issues",
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_issuesOutput",
+      "type": "object"
+    },
+    "title": null
+  },
+  {
+    "annotations": null,
+    "description": "Use this to check whether a project has passed its quality gate.\n\nReturns the overall status (OK, WARN, or ERROR) and the list of conditions\nthat failed, including the metric name, actual value, and threshold. Call\nthis first to assess overall project health before drilling into individual\nissues.",
+    "execution": null,
+    "icons": null,
+    "inputSchema": {
+      "properties": {
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization"
+        },
+        "project_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Key"
+        }
+      },
+      "title": "get_quality_gateArguments",
+      "type": "object"
+    },
+    "meta": null,
+    "name": "get_quality_gate",
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_quality_gateOutput",
+      "type": "object"
+    },
+    "title": null
+  },
+  {
+    "annotations": null,
+    "description": "Use this to list projects in a SonarCloud organization.\n\nReturns a list of projects with their keys, names, and visibility.\nThis is useful for discovering which projects are available for analysis.",
+    "execution": null,
+    "icons": null,
+    "inputSchema": {
+      "properties": {
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query"
+        }
+      },
+      "title": "list_projectsArguments",
+      "type": "object"
+    },
+    "meta": null,
+    "name": "list_projects",
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "list_projectsOutput",
+      "type": "object"
+    },
+    "title": null
+  }
+]
