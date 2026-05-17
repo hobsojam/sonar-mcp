@@ -74,7 +74,7 @@ class SonarClient:
         query: dict[str, str] = {"projectKey": params.project_key}
         if params.organization is not None:
             query["organization"] = params.organization
-        response = await self.get("qualitygates/project_status", params=query)
+        response = await self._get("qualitygates/project_status", params=query)
         self._handle_response(response)
         result = _QualityGateResponse.model_validate(response.json()).projectStatus
         self._quality_gate_cache[cache_key] = result
@@ -95,7 +95,7 @@ class SonarClient:
         page = 1
         while True:
             query["p"] = str(page)
-            response = await self.get("projects/search", params=query)
+            response = await self._get("projects/search", params=query)
             self._handle_response(response)
             parsed = ProjectsResponse.model_validate(response.json())
             all_projects.extend(parsed.components)
@@ -128,7 +128,7 @@ class SonarClient:
         page = 1
         while True:
             query["p"] = str(page)
-            response = await self.get("issues/search", params=query)
+            response = await self._get("issues/search", params=query)
             self._handle_response(response)
             parsed = IssuesResponse.model_validate(response.json())
             all_issues.extend(parsed.issues)
@@ -148,7 +148,7 @@ class SonarClient:
             data = response.json()
             errors = data.get("errors", [])
             message = errors[0].get("msg") if errors else response.text
-        except Exception:
+        except (ValueError, KeyError, TypeError):
             errors = []
             message = response.text
 
@@ -167,7 +167,7 @@ class SonarClient:
 
         raise SonarError(f"API request failed with status {status_code}: {message}")
 
-    async def get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
+    async def _get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
         url = f"{self._base_url}/{path.lstrip('/')}"
         logger.debug("GET %s params=%s", url, params)
         response = await self._http.get(url, params=params)

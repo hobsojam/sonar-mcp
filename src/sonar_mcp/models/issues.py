@@ -35,7 +35,6 @@ class Issue(BaseModel):
     message: str
     component: str
     rule: str
-    url: str | None = None
 
 
 class IssuesResponse(BaseModel):

@@ -16,7 +16,7 @@ async def get_issues(
     project_key: str,
     organization: str | None = None,
     severity: IssueSeverity | None = None,
-    type: IssueType | None = None,
+    issue_type: IssueType | None = None,
     status: IssueStatus | None = None,
     *,
     ctx: Context[Any, SonarClient, Any],
@@ -24,7 +24,7 @@ async def get_issues(
     """Use this to retrieve individual issues from a SonarCloud project.
 
     Returns the full list of issues, auto-paginated. Optionally filter by
-    severity, type, or status. Use get_issue_summary instead if you only need
+    severity, issue_type, or status. Use get_issue_summary instead if you only need
     aggregate counts.
     """
     client: SonarClient = ctx.request_context.lifespan_context
@@ -32,11 +32,11 @@ async def get_issues(
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
     logger.info(
-        "get_issues project=%s org=%s severity=%s type=%s status=%s",
+        "get_issues project=%s org=%s severity=%s issue_type=%s status=%s",
         project_key,
         org,
         severity,
-        type,
+        issue_type,
         status,
     )
     try:
@@ -45,20 +45,20 @@ async def get_issues(
                 project_key=project_key,
                 organization=org,
                 severity=severity,
-                type=type,
+                type=issue_type,
                 statuses=[status] if status is not None else None,
             )
         )
     except SonarError as e:
         return f"Error retrieving issues: {e}"
 
-    for issue in issues:
-        url = f"https://sonarcloud.io/project/issues?id={project_key}&issues={issue.key}&open={issue.key}"
-        if org:
-            url += f"&org={org}"
-        issue.url = url
+    def _url(issue_key: str) -> str:
+        base = f"https://sonarcloud.io/project/issues?id={project_key}&issues={issue_key}&open={issue_key}"
+        return base + f"&org={org}" if org else base
 
-    return json.dumps([issue.model_dump() for issue in issues], indent=2)
+    return json.dumps(
+        [{**issue.model_dump(), "url": _url(issue.key)} for issue in issues], indent=2
+    )
 
 
 async def get_issue_summary(

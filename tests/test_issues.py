@@ -69,7 +69,7 @@ async def test_get_issues_type_filter_is_passed_to_api(
 ) -> None:
     async with respx.mock() as mock:
         route = mock.get(_PATH).mock(return_value=httpx.Response(200, json=_page([_ISSUE])))
-        await get_issues("my-project", type=IssueType.BUG, ctx=sonar_ctx)
+        await get_issues("my-project", issue_type=IssueType.BUG, ctx=sonar_ctx)
     assert b"types=BUG" in route.calls[0].request.url.query
 
 
