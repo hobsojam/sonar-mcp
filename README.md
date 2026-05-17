@@ -13,6 +13,7 @@ Registers a set of MCP tools that Claude can call in any session to query SonarC
 | `get_quality_gate` | Quality gate status and failing conditions for a project |
 | `get_issues` | List issues filtered by severity, type, and status |
 | `get_issue_summary` | Aggregate issue counts by severity and type |
+| `list_projects` | List projects in a SonarCloud organization with their keys, names, and visibility |
 
 ## Tech stack
 
@@ -127,6 +128,10 @@ Once registered, Claude can call tools directly:
 | `get_issue_summary` tool | Done |
 | Integration tests against real SonarCloud API | Done |
 | Register server with Claude Code | Done |
+| Deep links to SonarCloud UI in tool responses | Done |
+| Standardized error handling for SonarCloud API | Done |
+| `list_projects` tool | Done |
+| Security scanning with pip-audit and bandit | Done |
 | Smart TTL-based caching for API responses | Done |
 
 ## Project structure

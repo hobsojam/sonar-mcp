@@ -24,6 +24,8 @@ dev = [
     "respx>=0.21",
     "pre-commit>=3.7",
     "types-cachetools>=5.3",
+    "pip-audit>=2.7",
+    "bandit>=1.7",
 ]
 
 [tool.setuptools.packages.find]
@@ -67,3 +69,7 @@ markers = ["integration: marks tests as integration tests (require real SonarClo
 
 [tool.coverage.run]
 source = ["src"]
+
+[tool.bandit]
+targets = ["src"]
+skips = ["B101"]
