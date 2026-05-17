@@ -200,7 +200,7 @@ class SonarClient:
                 logger.debug("GET %s params=%s", url, params)
                 response = await self._http.get(url, params=params)
                 logger.debug("%s %s", response.status_code, url)
-            except (httpx.RequestError, httpx.TransportError) as exc:
+            except (httpx.RequestError, httpx.TransportError):
                 # Retryable transport error
                 attempt += 1
                 should_retry = attempt <= self._max_retries
@@ -233,7 +233,7 @@ class SonarClient:
                     await asyncio.sleep(delay)
                     continue
                 # give up
-                logger.error("Giving up on request %s after transport errors: %s", url, exc)
+                logger.exception("Giving up on request %s after transport errors", url)
                 if self._metrics_hook:
                     try:
                         self._metrics_hook(
