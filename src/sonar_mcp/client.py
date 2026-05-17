@@ -40,8 +40,6 @@ _DEFAULT_PROJECTS_TTL = 300
 
 _CACHE_MAX_SIZE = 256
 
-_METRICS_HOOK_ERROR = "metrics hook error: %s"
-
 logger = logging.getLogger(__name__)
 _SYS_RANDOM = random.SystemRandom()
 
@@ -188,13 +186,32 @@ class SonarClient:
 
         raise SonarError(f"API request failed with status {status_code}: {message}")
 
-    async def _get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
-        """GET with a small retry/backoff strategy.
+    def _backoff_delay(self, attempt: int) -> float:
+        delay: float = min(self._backoff_base * (2 ** (attempt - 1)), self._backoff_max)
+        jitter: float = _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
+        return delay * jitter
 
-        Retries on network errors, 5xx responses, and 429 (rate limit). Respects
-        Retry-After when present. Metrics hook (if provided) is invoked for retry
-        attempts and give-up events.
-        """
+    def _parse_retry_after(self, header: str | None, attempt: int) -> float:
+        if header is not None:
+            try:
+                return float(int(header))
+            except ValueError:
+                pass
+            try:
+                dt = parsedate_to_datetime(header)
+                return max(0.0, (dt - datetime.now(UTC)).total_seconds())
+            except Exception:
+                logger.debug("Unparseable Retry-After header %r; using backoff", header)
+        return self._backoff_delay(attempt)
+
+    def _invoke_metrics_hook(self, event: str, payload: dict[str, Any]) -> None:
+        if self._metrics_hook:
+            try:
+                self._metrics_hook(event, payload)
+            except Exception as e:
+                logger.debug("metrics hook error: %s", e)
+
+    async def _get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
         url = f"{self._base_url}/{path.lstrip('/')}"
         attempt = 0
         while True:
@@ -203,72 +220,33 @@ class SonarClient:
                 response = await self._http.get(url, params=params)
                 logger.debug("%s %s", response.status_code, url)
             except (httpx.RequestError, httpx.TransportError):
-                # Retryable transport error
                 attempt += 1
-                should_retry = attempt <= self._max_retries
-                if should_retry:
-                    delay = min(
-                        self._backoff_base * (2 ** (attempt - 1)),
-                        self._backoff_max,
+                if attempt > self._max_retries:
+                    logger.exception("Giving up on request %s after transport errors", url)
+                    self._invoke_metrics_hook(
+                        "retry_give_up",
+                        {"url": url, "attempts": attempt, "reason": "transport_error"},
                     )
-                    delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
-                    logger.warning(
-                        "Retrying request %s (attempt %d/%d) after transport error; sleeping %.2fs",
-                        url,
-                        attempt,
-                        self._max_retries,
-                        delay,
-                    )
-                    if self._metrics_hook:
-                        try:
-                            self._metrics_hook(
-                                "retry_attempt",
-                                {
-                                    "url": url,
-                                    "attempt": attempt,
-                                    "reason": "transport_error",
-                                    "delay": delay,
-                                },
-                            )
-                        except Exception as e:
-                            logger.debug(_METRICS_HOOK_ERROR, e)
-                    await asyncio.sleep(delay)
-                    continue
-                # give up
-                logger.exception("Giving up on request %s after transport errors", url)
-                if self._metrics_hook:
-                    try:
-                        self._metrics_hook(
-                            "retry_give_up",
-                            {"url": url, "attempts": attempt, "reason": "transport_error"},
-                        )
-                    except Exception as e:
-                        logger.debug(_METRICS_HOOK_ERROR, e)
-                raise
+                    raise
+                delay = self._backoff_delay(attempt)
+                logger.warning(
+                    "Retrying request %s (attempt %d/%d) after transport error; sleeping %.2fs",
+                    url,
+                    attempt,
+                    self._max_retries,
+                    delay,
+                )
+                self._invoke_metrics_hook(
+                    "retry_attempt",
+                    {"url": url, "attempt": attempt, "reason": "transport_error", "delay": delay},
+                )
+                await asyncio.sleep(delay)
+                continue
 
-            # Handle HTTP responses
             status = response.status_code
-            # Rate limited
             if status == 429 and attempt < self._max_retries:
                 attempt += 1
-                retry_after = response.headers.get("Retry-After")
-                delay = None
-                if retry_after:
-                    try:
-                        delay = int(retry_after)
-                    except ValueError:
-                        try:
-                            dt = parsedate_to_datetime(retry_after)
-                            now = datetime.now(UTC)
-                            delay = max(0, (dt - now).total_seconds())
-                        except Exception:
-                            delay = None
-                if delay is None:
-                    delay = min(
-                        self._backoff_base * (2 ** (attempt - 1)),
-                        self._backoff_max,
-                    )
-                    delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
+                delay = self._parse_retry_after(response.headers.get("Retry-After"), attempt)
                 logger.warning(
                     "Rate limited on %s (attempt %d/%d); sleeping %.2fs",
                     url,
@@ -276,27 +254,16 @@ class SonarClient:
                     self._max_retries,
                     delay,
                 )
-                if self._metrics_hook:
-                    try:
-                        self._metrics_hook(
-                            "retry_attempt",
-                            {
-                                "url": url,
-                                "attempt": attempt,
-                                "reason": "rate_limited",
-                                "delay": delay,
-                            },
-                        )
-                    except Exception as e:
-                        logger.debug(_METRICS_HOOK_ERROR, e)
+                self._invoke_metrics_hook(
+                    "retry_attempt",
+                    {"url": url, "attempt": attempt, "reason": "rate_limited", "delay": delay},
+                )
                 await asyncio.sleep(delay)
                 continue
 
-            # Server errors (5xx)
             if 500 <= status < 600 and attempt < self._max_retries:
                 attempt += 1
-                delay = min(self._backoff_base * (2 ** (attempt - 1)), self._backoff_max)
-                delay *= _SYS_RANDOM.uniform(1 - self._jitter_frac, 1 + self._jitter_frac)
+                delay = self._backoff_delay(attempt)
                 logger.warning(
                     "Server error %d on %s (attempt %d/%d); sleeping %.2fs",
                     status,
@@ -305,23 +272,13 @@ class SonarClient:
                     self._max_retries,
                     delay,
                 )
-                if self._metrics_hook:
-                    try:
-                        self._metrics_hook(
-                            "retry_attempt",
-                            {
-                                "url": url,
-                                "attempt": attempt,
-                                "reason": "server_error",
-                                "delay": delay,
-                            },
-                        )
-                    except Exception as e:
-                        logger.debug(_METRICS_HOOK_ERROR, e)
+                self._invoke_metrics_hook(
+                    "retry_attempt",
+                    {"url": url, "attempt": attempt, "reason": "server_error", "delay": delay},
+                )
                 await asyncio.sleep(delay)
                 continue
 
-            # Otherwise return the response (success or non-retryable client error)
             return response
 
     async def __aenter__(self) -> Self:
