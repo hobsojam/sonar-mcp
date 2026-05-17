@@ -1,5 +1,7 @@
 # sonar-mcp
 
+> **Note:** This is an unofficial, community-built project and is not affiliated with or endorsed by SonarSource. An official MCP server is available at [docs.sonarsource.com](https://docs.sonarsource.com/agent-centric-development-cycle/developer-tools/mcp-server).
+
 A Model Context Protocol (MCP) server that wraps the SonarCloud REST API, exposing named tools for querying code quality data directly from Claude Code.
 
 ## What it does
