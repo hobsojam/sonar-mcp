@@ -1,15 +1,14 @@
-# ruff: noqa: I001
-from collections.abc import Callable
-from datetime import datetime, UTC
-from email.utils import parsedate_to_datetime
 import asyncio
 import logging
 import random
+from collections.abc import Callable
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from types import TracebackType
 from typing import Any, Self
 
-from cachetools import TTLCache
 import httpx
+from cachetools import TTLCache
 from pydantic import BaseModel
 
 from sonar_mcp.exceptions import (
