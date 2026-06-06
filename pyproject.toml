@@ -26,6 +26,8 @@ dev = [
     "types-cachetools>=7.0.0.20260518",
     "pip-audit>=2.10.0",
     "bandit>=1.9.4",
+    "pyjwt>=2.13.0",
+    "pip>=26.1.2",
 ]
 
 [tool.setuptools.packages.find]
