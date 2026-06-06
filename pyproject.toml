@@ -24,7 +24,7 @@ dev = [
     "respx>=0.21",
     "pre-commit>=3.7",
     "types-cachetools>=7.0.0.20260518",
-    "pip-audit>=2.7",
+    "pip-audit>=2.10.0",
     "bandit>=1.9.4",
 ]
 
