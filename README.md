@@ -173,7 +173,11 @@ This project now implements a small internal retry/backoff strategy for SonarClo
 
 **Known quirk:** `Retry-After` date strings formatted with a `-0000` timezone offset are parsed by Python's `email.utils.parsedate_to_datetime` as naive datetimes, which cannot be subtracted from `datetime.now(UTC)` (offset-aware). This causes a `TypeError` that is silently caught, and the delay falls back to `_backoff_delay`. RFC 2822 dates with a `GMT` or `+0000` offset parse correctly.
 
-Observability: retry attempts are logged at WARNING level and give-up events at ERROR level. The retry behavior can be configured via SonarClient constructor parameters.
+Observability: retry attempts are logged at WARNING level and give-up events at ERROR level. At
+INFO, tool and client completion records include outcomes, durations, result counts, page counts,
+and cache status. DEBUG HTTP records include endpoint and parameter names but deliberately omit
+parameter values and response bodies. The retry behavior can be configured via SonarClient
+constructor parameters.
 
 
 

@@ -1,4 +1,5 @@
 import json
+import logging
 from unittest.mock import MagicMock
 
 import httpx
@@ -38,6 +39,21 @@ async def test_returns_ok_status_for_passing_gate(
         result = await get_quality_gate("my-project", ctx=sonar_ctx)
     assert '"status": "OK"' in result
     assert '"url": "https://sonarcloud.io/dashboard?id=my-project"' in result
+
+
+async def test_logs_completion_without_project_identifiers(
+    sonar_ctx: Context,  # type: ignore[type-arg]
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="sonar_mcp.tools.quality_gate")
+    async with respx.mock() as mock:
+        mock.get(_PATH).mock(return_value=httpx.Response(200, json=_PASSING))
+        await get_quality_gate("sensitive-project", organization="sensitive-org", ctx=sonar_ctx)
+
+    assert "tool_call_completed tool=get_quality_gate outcome=success" in caplog.text
+    assert "result_count=1" in caplog.text
+    assert "sensitive-project" not in caplog.text
+    assert "sensitive-org" not in caplog.text
 
 
 async def test_includes_org_in_url_if_provided(sonar_ctx: Context) -> None:  # type: ignore[type-arg]

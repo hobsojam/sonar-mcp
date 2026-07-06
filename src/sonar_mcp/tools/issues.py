@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from time import perf_counter
 from typing import Any
 
 from mcp.server.fastmcp import Context
@@ -27,20 +28,18 @@ async def get_issues(
     severity, issue_type, or status. Use get_issue_summary instead if you only need
     aggregate counts.
     """
+    started_at = perf_counter()
     project = project_key if project_key is not None else os.environ.get("SONAR_DEFAULT_PROJECT")
     if not project:
+        logger.info(
+            "tool_call_completed tool=get_issues outcome=rejected "
+            "reason=missing_project_key duration_ms=%.2f",
+            (perf_counter() - started_at) * 1000,
+        )
         return "Error: project_key is required (or set SONAR_DEFAULT_PROJECT)"
     client: SonarClient = ctx.request_context.lifespan_context
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
-    )
-    logger.info(
-        "get_issues project=%s org=%s severity=%s issue_type=%s status=%s",
-        project,
-        org,
-        severity,
-        issue_type,
-        status,
     )
     try:
         issues = await client.get_issues(
@@ -53,6 +52,11 @@ async def get_issues(
             )
         )
     except SonarError as e:
+        logger.info(
+            "tool_call_completed tool=get_issues outcome=error error_type=%s duration_ms=%.2f",
+            type(e).__name__,
+            (perf_counter() - started_at) * 1000,
+        )
         return f"Error retrieving issues: {e}"
 
     def _url(issue_key: str) -> str:
@@ -61,9 +65,15 @@ async def get_issues(
         )
         return base + f"&org={org}" if org else base
 
-    return json.dumps(
+    result = json.dumps(
         [{**issue.model_dump(), "url": _url(issue.key)} for issue in issues], indent=2
     )
+    logger.info(
+        "tool_call_completed tool=get_issues outcome=success result_count=%d duration_ms=%.2f",
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return result
 
 
 async def get_issue_summary(
@@ -78,14 +88,19 @@ async def get_issue_summary(
     Counts issues with status OPEN, CONFIRMED, or REOPENED (all unresolved states).
     Returns counts only — use get_issues if you need the individual issue details.
     """
+    started_at = perf_counter()
     project = project_key if project_key is not None else os.environ.get("SONAR_DEFAULT_PROJECT")
     if not project:
+        logger.info(
+            "tool_call_completed tool=get_issue_summary outcome=rejected "
+            "reason=missing_project_key duration_ms=%.2f",
+            (perf_counter() - started_at) * 1000,
+        )
         return "Error: project_key is required (or set SONAR_DEFAULT_PROJECT)"
     client: SonarClient = ctx.request_context.lifespan_context
     org: str | None = (
         organization if organization is not None else os.environ.get("SONAR_DEFAULT_ORG")
     )
-    logger.info("get_issue_summary project=%s org=%s", project, org)
     try:
         issues = await client.get_issues(
             IssuesParams(
@@ -95,8 +110,13 @@ async def get_issue_summary(
             )
         )
     except SonarError as e:
+        logger.info(
+            "tool_call_completed tool=get_issue_summary outcome=error "
+            "error_type=%s duration_ms=%.2f",
+            type(e).__name__,
+            (perf_counter() - started_at) * 1000,
+        )
         return f"Error retrieving issue summary: {e}"
-
     by_severity = {s.value: 0 for s in IssueSeverity}
     by_type = {t.value: 0 for t in IssueType}
     for issue in issues:
@@ -107,4 +127,11 @@ async def get_issue_summary(
     if org:
         url += f"&org={org}"
 
-    return json.dumps({"by_severity": by_severity, "by_type": by_type, "url": url}, indent=2)
+    result = json.dumps({"by_severity": by_severity, "by_type": by_type, "url": url}, indent=2)
+    logger.info(
+        "tool_call_completed tool=get_issue_summary outcome=success "
+        "result_count=%d duration_ms=%.2f",
+        len(issues),
+        (perf_counter() - started_at) * 1000,
+    )
+    return result

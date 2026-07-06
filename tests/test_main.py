@@ -38,10 +38,13 @@ def test_logging_respects_log_level_env_var(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_logging_falls_back_to_warning_for_invalid_level(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.WARNING, logger="sonar_mcp")
     monkeypatch.setenv("LOG_LEVEL", "NOT_A_LEVEL")
     _configure_logging()
     assert logging.getLogger("sonar_mcp").level == logging.WARNING
+    assert "logging_configuration_invalid" in caplog.text
 
 
 async def test_all_four_tools_are_registered() -> None:

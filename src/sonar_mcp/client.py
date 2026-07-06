@@ -4,6 +4,7 @@ import random
 from collections.abc import Callable
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from time import perf_counter
 from types import TracebackType
 from typing import Any, Self
 
@@ -83,26 +84,40 @@ class SonarClient:
         self._metrics_hook = metrics_hook
 
     async def get_quality_gate_status(self, params: QualityGateParams) -> QualityGateProjectStatus:
+        started_at = perf_counter()
         cache_key = params.model_dump_json()
         if cache_key in self._quality_gate_cache:
-            return self._quality_gate_cache[cache_key]
+            result = self._quality_gate_cache[cache_key]
+            self._log_operation_completed(
+                "get_quality_gate_status", started_at, result_count=1, page_count=0, cache_hit=True
+            )
+            return result
 
         query: dict[str, str] = {"projectKey": params.project_key}
         if params.organization is not None:
             query["organization"] = params.organization
         response = await self._get("qualitygates/project_status", params=query)
-        self._handle_response(response)
+        self._handle_response(response, endpoint="qualitygates/project_status")
         try:
             result = QualityGateProjectStatus.model_validate(response.json()["projectStatus"])
-        except (ValidationError, KeyError) as exc:
+        except (ValidationError, KeyError, TypeError, ValueError) as exc:
+            self._log_invalid_response("qualitygates/project_status", response, exc)
             raise SonarError(_UNEXPECTED_RESPONSE_SHAPE) from exc
         self._quality_gate_cache[cache_key] = result
+        self._log_operation_completed(
+            "get_quality_gate_status", started_at, result_count=1, page_count=1, cache_hit=False
+        )
         return result
 
     async def get_projects(self, params: ProjectsParams) -> list[Project]:
+        started_at = perf_counter()
         cache_key = params.model_dump_json()
         if cache_key in self._projects_cache:
-            return self._projects_cache[cache_key]
+            result = self._projects_cache[cache_key]
+            self._log_operation_completed(
+                "get_projects", started_at, result_count=len(result), page_count=0, cache_hit=True
+            )
+            return result
 
         query: dict[str, str] = {"ps": str(_PAGE_SIZE)}
         if params.organization is not None:
@@ -115,10 +130,11 @@ class SonarClient:
         while True:
             query["p"] = str(page)
             response = await self._get("projects/search", params=query)
-            self._handle_response(response)
+            self._handle_response(response, endpoint="projects/search")
             try:
                 parsed = ProjectsResponse.model_validate(response.json())
-            except ValidationError as exc:
+            except (ValidationError, ValueError) as exc:
+                self._log_invalid_response("projects/search", response, exc)
                 raise SonarError(_UNEXPECTED_RESPONSE_SHAPE) from exc
             all_projects.extend(parsed.components)
             if len(all_projects) >= parsed.paging.total:
@@ -126,12 +142,24 @@ class SonarClient:
             page += 1
 
         self._projects_cache[cache_key] = all_projects
+        self._log_operation_completed(
+            "get_projects",
+            started_at,
+            result_count=len(all_projects),
+            page_count=page,
+            cache_hit=False,
+        )
         return all_projects
 
     async def get_issues(self, params: IssuesParams) -> list[Issue]:
+        started_at = perf_counter()
         cache_key = params.model_dump_json()
         if cache_key in self._issues_cache:
-            return self._issues_cache[cache_key]
+            result = self._issues_cache[cache_key]
+            self._log_operation_completed(
+                "get_issues", started_at, result_count=len(result), page_count=0, cache_hit=True
+            )
+            return result
 
         query: dict[str, str] = {
             "componentKeys": params.project_key,
@@ -151,10 +179,11 @@ class SonarClient:
         while True:
             query["p"] = str(page)
             response = await self._get("issues/search", params=query)
-            self._handle_response(response)
+            self._handle_response(response, endpoint="issues/search")
             try:
                 parsed = IssuesResponse.model_validate(response.json())
-            except ValidationError as exc:
+            except (ValidationError, ValueError) as exc:
+                self._log_invalid_response("issues/search", response, exc)
                 raise SonarError(_UNEXPECTED_RESPONSE_SHAPE) from exc
             all_issues.extend(parsed.issues)
             if len(all_issues) >= parsed.paging.total:
@@ -162,9 +191,44 @@ class SonarClient:
             page += 1
 
         self._issues_cache[cache_key] = all_issues
+        self._log_operation_completed(
+            "get_issues",
+            started_at,
+            result_count=len(all_issues),
+            page_count=page,
+            cache_hit=False,
+        )
         return all_issues
 
-    def _handle_response(self, response: httpx.Response) -> None:
+    @staticmethod
+    def _log_operation_completed(
+        operation: str,
+        started_at: float,
+        *,
+        result_count: int,
+        page_count: int,
+        cache_hit: bool,
+    ) -> None:
+        logger.info(
+            "sonar_operation_completed operation=%s outcome=success cache_hit=%s "
+            "duration_ms=%.2f result_count=%d page_count=%d",
+            operation,
+            str(cache_hit).lower(),
+            (perf_counter() - started_at) * 1000,
+            result_count,
+            page_count,
+        )
+
+    @staticmethod
+    def _log_invalid_response(endpoint: str, response: httpx.Response, exc: Exception) -> None:
+        logger.error(
+            "sonar_response_invalid endpoint=%s status_code=%d error_type=%s",
+            endpoint,
+            response.status_code,
+            type(exc).__name__,
+        )
+
+    def _handle_response(self, response: httpx.Response, *, endpoint: str) -> None:
         if response.is_success:
             return
 
@@ -177,7 +241,9 @@ class SonarClient:
             errors = []
             message = response.text
 
-        logger.error("SonarCloud API error %s: %s", status_code, message)
+        # Response bodies can contain user-controlled or sensitive data. Keep the
+        # diagnostic record useful without copying that content into server logs.
+        logger.error("sonar_api_error endpoint=%s status_code=%d", endpoint, status_code)
 
         if status_code == 401:
             raise SonarAuthenticationError("Authentication failed: Invalid API token")
@@ -214,21 +280,31 @@ class SonarClient:
         if self._metrics_hook:
             try:
                 self._metrics_hook(event, payload)
-            except Exception as e:
-                logger.debug("metrics hook error: %s", e)
+            except Exception as exc:
+                logger.debug("metrics_hook_failed error_type=%s", type(exc).__name__)
 
     async def _get(self, path: str, params: dict[str, str] | None = None) -> httpx.Response:
         url = f"{self._base_url}/{path.lstrip('/')}"
+        endpoint = path.lstrip("/")
+        started_at = perf_counter()
         attempt = 0
         while True:
             try:
-                logger.debug("GET %s params=%s", url, params)
+                parameter_names = ",".join(sorted(params)) if params else "none"
+                logger.debug(
+                    "sonar_http_request_started endpoint=%s parameter_names=%s",
+                    endpoint,
+                    parameter_names,
+                )
                 response = await self._http.get(url, params=params)
-                logger.debug("%s %s", response.status_code, url)
             except (httpx.RequestError, httpx.TransportError):
                 attempt += 1
                 if attempt > self._max_retries:
-                    logger.exception("Giving up on request %s after transport errors", url)
+                    logger.error(
+                        "sonar_http_request_failed endpoint=%s attempts=%d reason=transport_error",
+                        endpoint,
+                        attempt,
+                    )
                     self._invoke_metrics_hook(
                         "retry_give_up",
                         {"url": url, "attempts": attempt, "reason": "transport_error"},
@@ -236,8 +312,9 @@ class SonarClient:
                     raise
                 delay = self._backoff_delay(attempt)
                 logger.warning(
-                    "Retrying request %s (attempt %d/%d) after transport error; sleeping %.2fs",
-                    url,
+                    "sonar_http_request_retry endpoint=%s attempt=%d max_retries=%d "
+                    "reason=transport_error delay_seconds=%.2f",
+                    endpoint,
                     attempt,
                     self._max_retries,
                     delay,
@@ -254,8 +331,9 @@ class SonarClient:
                 attempt += 1
                 delay = self._parse_retry_after(response.headers.get("Retry-After"), attempt)
                 logger.warning(
-                    "Rate limited on %s (attempt %d/%d); sleeping %.2fs",
-                    url,
+                    "sonar_http_request_retry endpoint=%s attempt=%d max_retries=%d "
+                    "reason=rate_limited delay_seconds=%.2f",
+                    endpoint,
                     attempt,
                     self._max_retries,
                     delay,
@@ -271,9 +349,10 @@ class SonarClient:
                 attempt += 1
                 delay = self._backoff_delay(attempt)
                 logger.warning(
-                    "Server error %d on %s (attempt %d/%d); sleeping %.2fs",
+                    "sonar_http_request_retry endpoint=%s status_code=%d attempt=%d "
+                    "max_retries=%d reason=server_error delay_seconds=%.2f",
+                    endpoint,
                     status,
-                    url,
                     attempt,
                     self._max_retries,
                     delay,
@@ -285,6 +364,14 @@ class SonarClient:
                 await asyncio.sleep(delay)
                 continue
 
+            logger.debug(
+                "sonar_http_request_completed endpoint=%s status_code=%d "
+                "attempts=%d duration_ms=%.2f",
+                endpoint,
+                status,
+                attempt + 1,
+                (perf_counter() - started_at) * 1000,
+            )
             return response
 
     async def __aenter__(self) -> Self:
