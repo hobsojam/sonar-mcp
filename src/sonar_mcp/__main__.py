@@ -15,10 +15,13 @@ from sonar_mcp.tools.quality_gate import get_quality_gate
 
 def _configure_logging() -> None:
     level_name = os.environ.get("LOG_LEVEL", "WARNING").upper()
-    level = getattr(logging, level_name, None)
-    if not isinstance(level, int):
-        logging.warning("Invalid LOG_LEVEL %r — defaulting to WARNING", level_name)
+    configured_level = getattr(logging, level_name, None)
+    if isinstance(configured_level, int):
+        level = configured_level
+        invalid_level = False
+    else:
         level = logging.WARNING
+        invalid_level = True
     # Root logger stays at WARNING so third-party library logs stay quiet;
     # only the sonar_mcp logger respects LOG_LEVEL.
     logging.basicConfig(
@@ -26,6 +29,11 @@ def _configure_logging() -> None:
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
     logging.getLogger("sonar_mcp").setLevel(level)
+    if invalid_level:
+        logging.getLogger(__name__).warning(
+            "logging_configuration_invalid configured_level=%r fallback_level=WARNING",
+            level_name,
+        )
 
 
 @asynccontextmanager

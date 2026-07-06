@@ -1,5 +1,6 @@
 import base64
 import email.utils
+import logging
 import time
 import unittest.mock
 
@@ -51,6 +52,18 @@ async def test_custom_base_url_is_used() -> None:
         async with SonarClient(token="token", base_url=custom) as client:
             await client._get(path)
         assert route.called
+
+
+async def test_debug_logging_omits_parameter_values(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG, logger="sonar_mcp.client")
+    path = "qualitygates/project_status"
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{path}").mock(return_value=httpx.Response(200))
+        async with SonarClient(token="token") as client:
+            await client._get(path, params={"projectKey": "sensitive-project"})
+
+    assert "parameter_names=projectKey" in caplog.text
+    assert "sensitive-project" not in caplog.text
 
 
 # --- Quality Gate Status Tests ---
@@ -253,6 +266,24 @@ async def test_get_quality_gate_status_second_call_hits_cache() -> None:
     assert route.call_count == 1
 
 
+async def test_quality_gate_completion_logs_cache_status_and_counts(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="sonar_mcp.client")
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(200, json=_QUALITY_GATE_PAYLOAD)
+        )
+        async with SonarClient(token="token") as client:
+            params = QualityGateParams(project_key="my-project")
+            await client.get_quality_gate_status(params)
+            await client.get_quality_gate_status(params)
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("cache_hit=false" in message and "result_count=1" in message for message in messages)
+    assert any("cache_hit=true" in message and "page_count=0" in message for message in messages)
+
+
 async def test_get_quality_gate_status_different_args_are_not_cached() -> None:
     async with respx.mock() as mock:
         route = mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
@@ -369,15 +400,21 @@ async def test_get_projects_cache_expires_after_ttl() -> None:
 # --- Malformed 200 Response Tests ---
 
 
-async def test_get_quality_gate_status_raises_sonar_error_on_malformed_200() -> None:
+async def test_get_quality_gate_status_raises_sonar_error_on_malformed_200(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.ERROR, logger="sonar_mcp.client")
     async with respx.mock() as mock:
         mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
-            return_value=httpx.Response(200, json={})
+            return_value=httpx.Response(200, json={"unexpected": "sensitive-response-value"})
         )
         async with SonarClient(token="token") as client:
             with pytest.raises(SonarError) as exc:
                 await client.get_quality_gate_status(QualityGateParams(project_key="my-project"))
     assert "Unexpected response shape" in str(exc.value)
+    assert "sonar_response_invalid" in caplog.text
+    assert "endpoint=qualitygates/project_status" in caplog.text
+    assert "sensitive-response-value" not in caplog.text
 
 
 async def test_get_issues_raises_sonar_error_on_malformed_200() -> None:
@@ -387,6 +424,22 @@ async def test_get_issues_raises_sonar_error_on_malformed_200() -> None:
             with pytest.raises(SonarError) as exc:
                 await client.get_issues(IssuesParams(project_key="my-project"))
     assert "Unexpected response shape" in str(exc.value)
+
+
+async def test_get_quality_gate_status_logs_non_json_success_without_body(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.ERROR, logger="sonar_mcp.client")
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(200, text="sensitive-non-json-body")
+        )
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarError, match="Unexpected response shape"):
+                await client.get_quality_gate_status(QualityGateParams(project_key="project"))
+
+    assert "sonar_response_invalid" in caplog.text
+    assert "sensitive-non-json-body" not in caplog.text
 
 
 async def test_get_projects_raises_sonar_error_on_malformed_200() -> None:
@@ -592,3 +645,19 @@ async def test_400_does_not_trigger_retry() -> None:
             with pytest.raises(SonarValidationError):
                 await client.get_quality_gate_status(QualityGateParams(project_key="p"))
     assert route.call_count == 1
+
+
+async def test_api_error_log_omits_response_message(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.ERROR, logger="sonar_mcp.client")
+    async with respx.mock() as mock:
+        mock.get(f"{_DEFAULT_BASE}/{_QUALITY_GATE_PATH}").mock(
+            return_value=httpx.Response(
+                400, json={"errors": [{"msg": "sensitive-response-message"}]}
+            )
+        )
+        async with SonarClient(token="token") as client:
+            with pytest.raises(SonarValidationError):
+                await client.get_quality_gate_status(QualityGateParams(project_key="project"))
+
+    assert "sonar_api_error endpoint=qualitygates/project_status status_code=400" in caplog.text
+    assert "sensitive-response-message" not in caplog.text
