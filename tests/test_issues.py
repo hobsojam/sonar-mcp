@@ -4,8 +4,9 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import respx
-from mcp.server.fastmcp import Context
-from mcp.server.fastmcp.server import RequestContext
+from mcp.server.mcpserver import Context
+from mcp.server.mcpserver.server import ServerRequestContext
+from mcp.types import LATEST_PROTOCOL_VERSION
 
 from sonar_mcp.client import SonarClient
 from sonar_mcp.models import IssueSeverity, IssueStatus, IssueType
@@ -124,10 +125,15 @@ async def test_get_issues_returns_error_on_403(sonar_ctx: Context) -> None:  # t
 
 async def test_get_issues_returns_error_on_429() -> None:
     async with SonarClient(token="test-token", max_retries=0) as client:
-        rc: RequestContext[SonarClient, None] = RequestContext(
-            request_id="test", meta=None, session=MagicMock(), lifespan_context=client
+        rc: ServerRequestContext[SonarClient, None] = ServerRequestContext(
+            request_id="test",
+            meta=None,
+            session=MagicMock(),
+            lifespan_context=client,
+            protocol_version=LATEST_PROTOCOL_VERSION,
+            method="tools/call",
         )
-        ctx: Context[None, SonarClient, None] = Context(request_context=rc, fastmcp=MagicMock())
+        ctx: Context[SonarClient, None] = Context(request_context=rc, mcp_server=MagicMock())
         async with respx.mock() as mock:
             mock.get(_PATH).mock(return_value=httpx.Response(429))
             result = await get_issues("my-project", ctx=ctx)

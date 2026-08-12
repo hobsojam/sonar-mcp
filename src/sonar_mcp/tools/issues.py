@@ -4,7 +4,7 @@ import os
 from time import perf_counter
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context
 
 from sonar_mcp.client import SonarClient
 from sonar_mcp.exceptions import SonarError
@@ -20,7 +20,7 @@ async def get_issues(
     issue_type: IssueType | None = None,
     status: IssueStatus | None = None,
     *,
-    ctx: Context[Any, SonarClient, Any],
+    ctx: Context[SonarClient, Any],
 ) -> str:
     """Use this to retrieve individual issues from a SonarCloud project.
 
@@ -80,7 +80,7 @@ async def get_issue_summary(
     project_key: str | None = None,
     organization: str | None = None,
     *,
-    ctx: Context[Any, SonarClient, Any],
+    ctx: Context[SonarClient, Any],
 ) -> str:
     """Use this to get a high-level breakdown of unresolved issues in a SonarCloud project,
     grouped by severity and type.

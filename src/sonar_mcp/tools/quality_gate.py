@@ -4,7 +4,7 @@ import os
 from time import perf_counter
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context
 
 from sonar_mcp.client import SonarClient
 from sonar_mcp.exceptions import SonarError
@@ -17,7 +17,7 @@ async def get_quality_gate(
     project_key: str | None = None,
     organization: str | None = None,
     *,
-    ctx: Context[Any, SonarClient, Any],
+    ctx: Context[SonarClient, Any],
 ) -> str:
     """Use this to check whether a project has passed its quality gate.
 

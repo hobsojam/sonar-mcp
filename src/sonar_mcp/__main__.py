@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from sonar_mcp.client import SonarClient
 from sonar_mcp.tools.issues import get_issue_summary, get_issues
@@ -45,7 +45,7 @@ async def _lifespan(server: Any) -> AsyncGenerator[SonarClient, None]:
         yield client
 
 
-server = FastMCP("sonar-mcp", lifespan=_lifespan)
+server = MCPServer("sonar-mcp", lifespan=_lifespan)
 server.tool()(get_quality_gate)
 server.tool()(get_issues)
 server.tool()(get_issue_summary)
