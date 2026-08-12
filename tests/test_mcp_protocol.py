@@ -1,6 +1,6 @@
 """Component tests exercising the full MCP protocol stack in-process.
 
-These tests wire a ClientSession directly to the FastMCP server via anyio
+These tests wire a ClientSession directly to the MCPServer via anyio
 memory streams and mock SonarCloud HTTP at the boundary with respx.  They
 verify that the JSON Schema generated from function signatures is correct,
 that incoming JSON-RPC tool calls are routed properly, and that return values
@@ -81,14 +81,14 @@ async def _connected_client(
     server_write, client_read = anyio.create_memory_object_stream(32)
     client_write, server_read = anyio.create_memory_object_stream(32)
 
-    init_opts = server._mcp_server.create_initialization_options()
+    init_opts = server._lowlevel_server.create_initialization_options()
 
     # Activate respx before starting the server task so the task inherits the
     # patched async context and intercepts HTTP calls made inside tool handlers.
     async with respx.mock(assert_all_called=False) as mock_router:
         async with anyio.create_task_group() as tg:
             tg.start_soon(
-                server._mcp_server.run,
+                server._lowlevel_server.run,
                 server_read,
                 server_write,
                 init_opts,
@@ -123,7 +123,7 @@ async def test_get_quality_gate_schema_has_expected_parameters(
         result: ListToolsResult = await session.list_tools()
 
     tool = next(t for t in result.tools if t.name == "get_quality_gate")
-    props = tool.inputSchema.get("properties", {})
+    props = tool.input_schema.get("properties", {})
     assert "project_key" in props
     assert "organization" in props
 
@@ -135,7 +135,7 @@ async def test_get_issues_schema_has_expected_parameters(
         result: ListToolsResult = await session.list_tools()
 
     tool = next(t for t in result.tools if t.name == "get_issues")
-    props = tool.inputSchema.get("properties", {})
+    props = tool.input_schema.get("properties", {})
     assert "project_key" in props
     assert "organization" in props
     assert "severity" in props
@@ -150,7 +150,7 @@ async def test_list_projects_schema_has_expected_parameters(
         result: ListToolsResult = await session.list_tools()
 
     tool = next(t for t in result.tools if t.name == "list_projects")
-    props = tool.inputSchema.get("properties", {})
+    props = tool.input_schema.get("properties", {})
     assert "organization" in props
     assert "query" in props
 
@@ -163,7 +163,7 @@ async def test_get_issue_summary_schema_has_only_project_and_org_parameters(
         result: ListToolsResult = await session.list_tools()
 
     summary_tool = next(t for t in result.tools if t.name == "get_issue_summary")
-    props = summary_tool.inputSchema.get("properties", {})
+    props = summary_tool.input_schema.get("properties", {})
     assert "project_key" in props
     assert "organization" in props
     assert "severity" not in props
@@ -184,7 +184,7 @@ async def test_call_get_quality_gate_returns_ok_status(
             "get_quality_gate", {"project_key": "my-project"}
         )
 
-    assert not result.isError
+    assert not result.is_error
     assert len(result.content) == 1
     text = result.content[0].text  # type: ignore[union-attr]
     assert '"status": "OK"' in text
@@ -199,7 +199,7 @@ async def test_call_get_issues_returns_issue_list(
             "get_issues", {"project_key": "my-project"}
         )
 
-    assert not result.isError
+    assert not result.is_error
     text = result.content[0].text  # type: ignore[union-attr]
     assert "ISSUE-1" in text
 
@@ -213,7 +213,7 @@ async def test_call_get_issue_summary_returns_counts_by_severity_and_type(
             "get_issue_summary", {"project_key": "my-project"}
         )
 
-    assert not result.isError
+    assert not result.is_error
     text = result.content[0].text  # type: ignore[union-attr]
     assert "by_severity" in text
     assert "by_type" in text
@@ -228,7 +228,7 @@ async def test_call_list_projects_returns_project_list(
             "list_projects", {"organization": "my-org"}
         )
 
-    assert not result.isError
+    assert not result.is_error
     text = result.content[0].text  # type: ignore[union-attr]
     assert "my-project" in text
 

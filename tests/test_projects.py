@@ -2,7 +2,7 @@ import json
 
 import httpx
 import respx
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context
 
 from sonar_mcp.tools.projects import list_projects
 
