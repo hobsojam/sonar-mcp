@@ -33,6 +33,6 @@ jobs:
       - name: Security lint
         run: uv run bandit -c pyproject.toml -r src/
       - name: SonarQube Cloud Scan
-        uses: SonarSource/sonarqube-scan-action@v8.2.1
+        uses: SonarSource/sonarqube-scan-action@v8.2.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
