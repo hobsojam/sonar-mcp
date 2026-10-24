@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "mcp>=2.2.0",
     "httpx>=0.28.1",
-    "pydantic>=2.14.0",
+    "pydantic>=2.14.1",
     "cachetools>=7.2.1",
 ]
 
